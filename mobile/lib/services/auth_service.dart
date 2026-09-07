@@ -338,7 +338,7 @@ class AuthServiceImpl implements AuthService {
   }
 
   // Generate RSA-2048 key pair
-  AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> _generateKeyPair() {
+  AsymmetricKeyPair _generateKeyPair() {
     final generator = RSAKeyGenerator()
       ..init(
         ParametersWithRandom(
@@ -355,13 +355,19 @@ class AuthServiceImpl implements AuthService {
     return Uint8List.fromList(bytes);
   }
 
-  String _encodePublicKey(RSAPublicKey key) {
+  String _encodePublicKey(dynamic key) {
     // TODO: Proper PEM encoding of RSA public key
-    return 'mock_public_key_${key.modulus}';
+    if (key is RSAPublicKey) {
+      return 'mock_public_key_${key.modulus}';
+    }
+    return 'mock_public_key_encoded';
   }
 
-  String _encodePrivateKey(RSAPrivateKey key) {
+  String _encodePrivateKey(dynamic key) {
     // TODO: Proper PEM encoding of RSA private key
-    return 'mock_private_key_${key.privateExponent}';
+    if (key is RSAPrivateKey) {
+      return 'mock_private_key_${key.privateExponent}';
+    }
+    return 'mock_private_key_encoded';
   }
 }
