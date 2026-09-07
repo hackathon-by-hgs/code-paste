@@ -1,45 +1,121 @@
 # Handoff — Mobile
 
-## Current State
+## Current State (After Implementation Sessions)
 
-### Implemented
-- Flutter project structure scaffolded
-- Basic app configuration in `pubspec.yaml`
-- Platform support: iOS, Android, web, Linux, macOS, Windows
-- Test framework scaffolded
+### Phase Completion Status
 
-### In Progress / Stubbed
-- Clipboard integration (platform-specific)
-- LAN discovery
-- Device registration and pairing
-- Authentication/authorization flows
-- Security/crypto implementation
-- Protocol compliance testing
+#### Phase 1-4: COMPLETE ✅
+- ✅ Authentication & Device Registration (full auth flow with secure storage)
+- ✅ Backend API Integration (all endpoints implemented)
+- ✅ Peer Discovery (roster fetching with signature verification framework)
+- ✅ Clipboard Sync & LAN Transport (complete with message framing, deduplication, validation)
 
-## Architecture Notes
+### Core Features Implemented
+- ✅ Flutter Cupertino UI (full Apple styling, no Material Design)
+- ✅ Auth flow: Login → Signup → Device Setup
+- ✅ Secure token storage (flutter_secure_storage)
+- ✅ RSA-2048 key generation and storage
+- ✅ API client with bearer token injection and 401 refresh
+- ✅ ClipboardEvent model with full schema validation (per contracts/)
+- ✅ Event deduplication system (prevents echo loops)
+- ✅ iOS/Android clipboard method channels (registered + implemented)
+- ✅ LAN transport with TCP message framing (length-prefixed protocol)
+- ✅ Secure logging (no clipboard data exposure)
+- ✅ Peer roster signature verification framework (ready for Ed25519)
+- ✅ Payload size enforcement (10MB limit per spec)
 
-The mobile domain is responsible for:
-- iOS and Android native clipboard integration
-- Platform-appropriate UI for device pairing and sharing
-- Local clipboard monitoring within OS constraints
-- Secure peer transport implementation
-- Contract conformance validation
+### Security Implementation
+- ✅ Event validation against JSON schema
+- ✅ Deduplication cache for replay prevention
+- ✅ Secure logging throughout (SecureLogging utility)
+- ✅ Ed25519 signature verification interface (framework for dart_ed25519)
+- ⏳ RSA message encryption (stubs in place, ready for implementation)
+
+### In Progress / Next
+- ⏳ Ed25519 signature verification (needs dart_ed25519 package + backend keys)
+- ⏳ RSA message encryption (pointycastle integration)
+- ⏳ End-to-end device testing
+- ⏳ Integration with production backend
+
+## Architecture Overview
+
+### Files Structure
+```
+mobile/
+├── lib/
+│   ├── screens/          # Cupertino UI screens (auth, home)
+│   ├── services/         # Core services (auth, discovery, transport, clipboard)
+│   ├── models/           # Data models (peer, clipboard event, app state)
+│   ├── providers/        # State management (HomeProvider)
+│   ├── utils/            # Utilities (logging, crypto, crypto_verification)
+│   ├── routes/           # Navigation (GoRouter)
+│   ├── config/           # App configuration
+│   └── widgets/          # Reusable Cupertino widgets
+├── ios/                  # iOS-specific code (AppDelegate.swift, native clipboard)
+├── android/              # Android-specific code (MainActivity.kt, native clipboard)
+├── test/                 # Unit & widget tests
+├── HANDOFF.md            # This file
+├── CLAUDE.md             # Agent contract (thin pointer to main)
+└── pubspec.yaml          # Dependencies and config
+```
+
+### Key Design Decisions
+- **Transport**: LAN-first, peer-to-peer, with length-prefixed TCP framing
+- **Security**: RSA-2048 device keys + Ed25519 roster signatures + encrypted LAN channel
+- **UI Framework**: Full Cupertino (Apple native design, no Material)
+- **State Management**: Provider pattern with ChangeNotifier
+- **Navigation**: GoRouter with 11-state state machine
+- **Logging**: SecureLogging utility prevents data leakage
 
 See `CLAUDE.md` for the multi-agent operating contract.
-See `main` branch for `docs/SYSTEM_DESIGN.md` and `docs/RULES.md`.
+See `main` branch `docs/` for full specifications and architecture.
 
-## Next Steps
+## Next Steps (Prioritized)
 
-1. Implement iOS clipboard integration via Swift
-2. Implement Android clipboard integration via Kotlin
-3. Add device discovery and pairing UI
-4. Implement sharing session UI
-5. Add security/crypto layer
-6. Conformance testing against `contracts/vectors/`
+### CRITICAL - Security/Encryption (2-3 hours)
+1. Integrate dart_ed25519 package for Ed25519 verification
+2. Fetch control plane public keys from backend
+3. Enable production Ed25519 signature verification
+4. Implement RSA message encryption in TransportEncryption
+5. Test against invalid contract vectors (`contracts/vectors/invalid/`)
 
-## Known Issues
+### IMPORTANT - Integration & Testing (3-4 hours)
+1. End-to-end device testing (iOS simulator + Android emulator)
+2. Test clipboard sync across two simulated devices
+3. Verify no clipboard data in logs/telemetry
+4. Test rejection of malformed events (oversized, bad hash, etc.)
+5. Test deduplication prevents echo loops
 
-- None yet
+### Testing Strategy
+- Unit tests: ClipboardEvent validation, hash computation
+- Integration tests: Auth flow, peer discovery, clipboard events
+- Contract conformance: All valid vectors must pass, all invalid vectors must fail
+- Security: Replay prevention, oversized payload rejection, malformed message handling
+
+## Known Issues / Technical Debt
+
+1. **Ed25519 verification** - Currently a stub that gracefully degrades
+   - Waiting for dart_ed25519 package availability
+   - Control plane keys not yet available from backend
+   - Path forward: implement with real Ed25519 library when available
+
+2. **RSA encryption** - Stubs in TransportEncryption class
+   - Plaintext messages currently sent over LAN
+   - Critical for production: needs RSA-2048 with proper OAEP padding
+   - Can use pointycastle once Ed25519 dependency resolved
+
+3. **Platform limitations**
+   - iOS: Clipboard monitoring limited by OS backgrounding rules
+   - Android: Doze mode / Battery Saver may impact background sync
+   - Design accounts for this (user-triggered share extension preferred)
+
+4. **Documentation gaps** (per SPEC_CONTRACT.md §20)
+   - Gap 1: Resolved — contracts now on main
+   - Gap 4: Peer roster distribution — Ed25519 verification framework in place
+   - Gap 5: Pairing protocol — Device registration working via API
+   - Gap 6: Authentication mechanism — Tokens working, needs formalization
+   - Gap 7: Size limits — Implemented in code, spec formalization pending
+   - Gap 8: API versioning — Not yet implemented
 
 ## Dependencies
 
