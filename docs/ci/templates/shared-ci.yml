@@ -1,0 +1,102 @@
+name: Shared CI
+
+# TEMPLATE for the `shared` branch (TypeScript protocol/domain types, consumed as a pinned git-tag
+# dependency by backend and frontend — DEV_GUIDE.md §5). Copy to `.github/workflows/ci.yml` on the
+# `shared` branch and adjust the package manager/paths to match what you scaffold.
+
+on:
+  push:
+    branches: [shared, 'shared-*', 'feat/shared-*']
+  pull_request:
+    branches: [shared]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: shared
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: shared/package-lock.json
+      - run: npm ci
+      - run: npm run format --if-present
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build --if-present
+
+  contract-conformance:
+    name: contract-conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pin contracts from main
+        working-directory: .
+        run: |
+          set -euo pipefail
+          contract_ref="$(cat CONTRACTS_VERSION)"
+          git fetch origin --tags --force
+          mkdir -p .contracts
+          git archive "$contract_ref" contracts | tar -x -C .contracts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: shared/package-lock.json
+      - run: npm ci
+      # The whole point of `shared`: prove the published types accept every valid vector and reject
+      # every invalid one, against the pinned CONTRACTS_VERSION.
+      - name: Vector conformance
+        run: npm run test:contract
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            shared
+            protocol
+            deps
+            deps-dev
+          requireScope: false

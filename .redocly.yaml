@@ -1,0 +1,19 @@
+# Redocly lint config for the control-plane OpenAPI contract (main CI).
+#
+# Gate philosophy: enforce STRUCTURAL correctness as a hard gate — a valid OpenAPI 3.1 document,
+# resolvable $refs, unique/unambiguous paths, no phantom schema properties. Stylistic completeness
+# (operationId on every op, richer examples) is advisory (warn) so the gate never blocks a correct
+# contract on cosmetics. Ratchet advisory rules up to `error` as the spec is completed.
+#
+# Docs: https://redocly.com/docs/cli/configuration
+extends:
+  - minimal
+
+rules:
+  struct: error                 # core OpenAPI structure — the gate that caught the refreshToken bug
+  no-identical-paths: error
+  no-ambiguous-paths: error
+  path-not-include-query: error
+  operation-operationId-unique: error
+  operation-operationId: warn   # 23 ops still lack operationId; completing them is a separate PR
+  no-server-example.com: off    # api.code-paste.example / localhost are intentional placeholders

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something behaves incorrectly in a domain (backend, frontend, desktop, mobile) or the contracts.
+labels: ["type: bug", "needs: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Never paste real clipboard contents, tokens, or personal data** —
+        use synthetic examples (RULES.md §2, TEST_STRATEGY.md).
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Affected domain
+      options:
+        - backend (control plane)
+        - frontend (web app)
+        - desktop (agent)
+        - mobile
+        - shared (types)
+        - contracts / protocol
+        - unsure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Actual behaviour, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: contract-version
+    attributes:
+      label: Contract version (CONTRACTS_VERSION)
+      placeholder: protocol-v1.0.0
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, device, app version, commit SHA.
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Hygiene
+      options:
+        - label: This report contains no real clipboard data, secrets, or personal information.
+          required: true

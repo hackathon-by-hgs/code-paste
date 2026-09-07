@@ -1,0 +1,48 @@
+name: Contract / protocol change
+description: Propose a change to contracts/ or the wire protocol. High blast radius — every domain pins this.
+labels: ["area: contracts", "needs: triage", "cross-cutting"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A contract change obligates **every** domain that pins it (DEV_GUIDE.md §5). Breaking changes
+        get a **new protocol version**, never a silent redefinition of v1.
+  - type: textarea
+    id: change
+    attributes:
+      label: What contract changes?
+      description: Which schema / vector / OpenAPI path, and the new shape.
+    validations:
+      required: true
+  - type: dropdown
+    id: compat
+    attributes:
+      label: Compatibility
+      options:
+        - Additive / backward-compatible (minor bump)
+        - Breaking (new major protocol version)
+    validations:
+      required: true
+  - type: textarea
+    id: domains
+    attributes:
+      label: Domains that must move
+      description: List every domain and what each must change to stay conformant.
+      value: |
+        - backend:
+        - frontend:
+        - desktop:
+        - mobile:
+        - shared:
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Definition-of-done for a contract change
+      options:
+        - label: Schema updated.
+        - label: Valid AND invalid vectors updated (the invalid set is the security surface).
+        - label: docs/PROTOCOL.md and/or docs/API_CONTRACTS.md updated.
+        - label: contracts/VERSION bumped and a new tag planned.
+        - label: Cross-cutting handoff drafted in docs/HANDOFFS/.

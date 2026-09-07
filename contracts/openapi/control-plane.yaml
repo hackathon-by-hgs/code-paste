@@ -660,7 +660,7 @@ components:
       required: [accessToken, refreshToken, tokenType, expiresIn, user]
       properties:
         accessToken: { type: string, description: JWT. Short-lived. }
-        refreshToken: { type: string, description: Opaque, single-use, rotated on every refresh. }
+        refreshToken: { type: string, description: "Opaque, single-use, rotated on every refresh." }
         tokenType: { const: Bearer }
         expiresIn: { type: integer, description: Access-token lifetime in seconds. }
         user: { $ref: '#/components/schemas/User' }

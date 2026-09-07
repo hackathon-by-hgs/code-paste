@@ -1,0 +1,113 @@
+name: Desktop CI
+
+# TEMPLATE for the `desktop` branch (the OS clipboard background agent — ADR-002). The stack is not
+# yet decided; this template assumes a Node/TypeScript agent. If desktop is built in Rust or Go,
+# replace the `quality`/`build` jobs with the equivalent toolchain (cargo fmt/clippy/test/build, or
+# gofmt/go vet/go test/go build) and keep the same job NAMES so the ruleset contexts still match.
+#
+# The agent runs on three OSes — build/test on all three so a platform clipboard quirk cannot ship
+# undetected (CLAUDE.md "platform reality").
+
+on:
+  push:
+    branches: [desktop, 'desktop-*', 'feat/desktop-*']
+  pull_request:
+    branches: [desktop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: desktop
+
+jobs:
+  quality:
+    name: quality (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm run format --if-present
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build --if-present
+
+  contract-conformance:
+    name: contract-conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pin contracts from main
+        working-directory: .
+        run: |
+          set -euo pipefail
+          contract_ref="$(cat CONTRACTS_VERSION)"
+          git fetch origin --tags --force
+          mkdir -p .contracts
+          git archive "$contract_ref" contracts | tar -x -C .contracts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      # Desktop parses clipboard events off the wire — it MUST reject every invalid vector
+      # (oversized, replayed, spoofed sender, bad hash). This is the security surface (DEV_GUIDE §5).
+      - name: Vector conformance
+        run: npm run test:contract
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            desktop
+            clipboard
+            discovery
+            transport
+            crypto
+            deps
+            deps-dev
+          requireScope: false
