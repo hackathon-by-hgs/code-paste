@@ -1,4 +1,6 @@
 import 'package:uuid/uuid.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 enum ContentType {
   textPlain('text/plain'),
@@ -27,7 +29,7 @@ class ClipboardEvent {
   final String hash; // sha256:hex
   final String payload; // text/plain: UTF-8 string, image/*: base64
 
-  const ClipboardEvent({
+  ClipboardEvent({
     required this.eventId,
     required this.senderDeviceId,
     required this.sequence,
@@ -37,16 +39,16 @@ class ClipboardEvent {
     required this.payload,
     this.sessionId,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? const Duration();
+  }) : createdAt = createdAt ?? DateTime.now().toUtc();
 
-  factory ClipboardEvent({
+  /// Factory to create event with computed hash and size
+  factory ClipboardEvent.create({
     required String senderDeviceId,
     required int sequence,
     required ContentType contentType,
     required String payload,
     String? sessionId,
   }) {
-    // For factory, compute hash
     final hash = _computeHash(payload);
     return ClipboardEvent(
       eventId: const Uuid().v4(),
@@ -92,14 +94,17 @@ class ClipboardEvent {
   };
 
   static String _computeHash(String payload) {
-    // TODO: Use crypto.sha256 for real implementation
-    return 'sha256:mock_${payload.hashCode}';
+    // Use SHA256 for real implementation
+    final bytes = utf8.encode(payload);
+    final digest = sha256.convert(bytes);
+    return 'sha256:${digest.toString()}';
   }
 
   static int _computeDecodedSize(String payload, ContentType contentType) {
     switch (contentType) {
       case ContentType.textPlain:
-        return payload.length;
+        // UTF-8 byte count, not character count
+        return utf8.encode(payload).length;
       case ContentType.imagePng:
       case ContentType.imageJpeg:
         // Base64 decode: roughly payload.length * 3/4
@@ -114,17 +119,11 @@ class ClipboardEvent {
     // Check hash format
     if (!hash.startsWith('sha256:')) return false;
 
-    // Check content type
-    if (contentType == ContentType.imagePng ||
-        contentType == ContentType.imageJpeg) {
-      // Images should be base64
-      try {
-        // Validate base64
-        const uuid = Uuid();
-        uuid.parse(eventId); // Just verify we have a valid UUID
-      } catch (_) {
-        return false;
-      }
+    // Check event ID is valid UUID
+    try {
+      const Uuid().parse(eventId);
+    } catch (_) {
+      return false;
     }
 
     return true;

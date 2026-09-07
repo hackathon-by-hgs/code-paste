@@ -47,7 +47,20 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
 
   void _setupReceivedEventsForwarding() {
     _transport.receivedEvents.listen(
-      (event) => _receivedEventsController.add(event),
+      (event) async {
+        try {
+          // Write received event to clipboard
+          await _clipboardService.writeClipboard(
+            event.payload,
+            event.contentType,
+          );
+          print('Wrote received event to clipboard: ${event.eventId}');
+        } catch (e) {
+          print('Failed to write clipboard: $e');
+        }
+
+        _receivedEventsController.add(event);
+      },
       onError: (e) => print('Error receiving event: $e'),
     );
   }
@@ -102,7 +115,7 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
 
     // Create event
     final contentType = snapshot.contentType ?? ContentType.textPlain;
-    final event = ClipboardEvent(
+    final event = ClipboardEvent.create(
       senderDeviceId: _deviceId,
       sequence: ++_eventSequence,
       contentType: contentType,
