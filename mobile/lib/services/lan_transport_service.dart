@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../models/clipboard_event.dart';
 import '../models/peer.dart';
@@ -20,10 +21,12 @@ class LanTransportServiceImpl implements LanTransportService {
   final String _privateKeyPem;
   final Map<String, Socket> _peerSockets = {};
   final Map<String, StreamSubscription> _peerListeners = {};
+  final Map<String, Uint8List> _peerBuffers = {}; // Buffer for partial messages
   late final StreamController<ClipboardEvent> _receivedEventsController;
 
   static const int defaultPort = 9001; // Copy-paste LAN port
   static const int connectionTimeoutSeconds = 10;
+  static const int messageHeaderSize = 4; // 4-byte length prefix
 
   @override
   Stream<ClipboardEvent> get receivedEvents => _receivedEventsController.stream;
@@ -92,22 +95,45 @@ class LanTransportServiceImpl implements LanTransportService {
 
   void _onPeerData(String peerId, List<int> data, String peerPublicKey) {
     try {
-      final json = utf8.decode(data);
-      final payload = jsonDecode(json) as Map<String, dynamic>;
+      // Append to existing buffer
+      final buffer = _peerBuffers[peerId] ?? Uint8List(0);
+      _peerBuffers[peerId] = Uint8List.fromList([...buffer, ...data]);
 
-      // TODO: Decrypt payload using peerPublicKey
-      // For now, assume plaintext
-      final event = ClipboardEvent.fromJson(payload);
+      // Process complete messages from buffer
+      while (_peerBuffers[peerId]!.length >= messageHeaderSize) {
+        final buf = _peerBuffers[peerId]!;
 
-      // Validate sender
-      if (event.senderDeviceId != peerId) {
-        print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
-        return;
+        // Read message length (4-byte big-endian)
+        final lengthBytes = buf.sublist(0, messageHeaderSize);
+        final length = ByteData.view(lengthBytes.buffer).getUint32(0);
+
+        // Check if we have the complete message
+        if (buf.length < messageHeaderSize + length) {
+          break; // Wait for more data
+        }
+
+        // Extract message data
+        final messageData = buf.sublist(messageHeaderSize, messageHeaderSize + length);
+        final json = utf8.decode(messageData);
+        final payload = jsonDecode(json) as Map<String, dynamic>;
+
+        // TODO: Decrypt payload using peerPublicKey
+        // For now, assume plaintext
+        final event = ClipboardEvent.fromJson(payload);
+
+        // Validate sender
+        if (event.senderDeviceId != peerId) {
+          print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
+        } else {
+          _receivedEventsController.add(event);
+        }
+
+        // Remove processed message from buffer
+        _peerBuffers[peerId] = Uint8List.fromList(buf.sublist(messageHeaderSize + length));
       }
-
-      _receivedEventsController.add(event);
     } catch (e) {
       print('Error processing peer data from $peerId: $e');
+      disconnect(peerId);
     }
   }
 
@@ -133,12 +159,19 @@ class LanTransportServiceImpl implements LanTransportService {
 
       // TODO: Encrypt JSON payload with peer's public key
       // For now, send plaintext
-      final data = utf8.encode(json);
+      final messageData = utf8.encode(json);
 
-      socket.add(data);
+      // Prepare length-prefixed message
+      final lengthBytes = ByteData(messageHeaderSize)..setUint32(0, messageData.length);
+      final framedMessage = Uint8List.fromList([
+        ...lengthBytes.buffer.asUint8List(),
+        ...messageData
+      ]);
+
+      socket.add(framedMessage);
       await socket.flush();
 
-      print('Sent event ${event.eventId} to $peerId');
+      print('Sent event ${event.eventId} to $peerId (length=${messageData.length})');
     } catch (e) {
       print('Failed to send event to $peerId: $e');
       await disconnect(peerId);
@@ -156,9 +189,16 @@ class LanTransportServiceImpl implements LanTransportService {
       };
 
       final json = jsonEncode(handshake);
-      final data = utf8.encode(json);
+      final messageData = utf8.encode(json);
 
-      socket.add(data);
+      // Prepare length-prefixed message
+      final lengthBytes = ByteData(messageHeaderSize)..setUint32(0, messageData.length);
+      final framedMessage = Uint8List.fromList([
+        ...lengthBytes.buffer.asUint8List(),
+        ...messageData
+      ]);
+
+      socket.add(framedMessage);
       await socket.flush();
 
       print('Handshake sent to ${peer.deviceId}');
@@ -181,6 +221,7 @@ class LanTransportServiceImpl implements LanTransportService {
       _peerListeners.remove(peerId);
 
       final socket = _peerSockets.remove(peerId);
+      _peerBuffers.remove(peerId);
       await socket?.close();
 
       print('Disconnected from peer: $peerId');

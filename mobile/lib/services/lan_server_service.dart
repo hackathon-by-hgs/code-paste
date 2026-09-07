@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import '../models/clipboard_event.dart';
 
 /// Listens for incoming clipboard events from peer devices
@@ -19,6 +20,9 @@ class LanServerServiceImpl implements LanServerService {
   ServerSocket? _serverSocket;
   bool _isRunning = false;
   late final StreamController<ClipboardEvent> _incomingEventsController;
+  final Map<Socket, Uint8List> _socketBuffers = {}; // Buffer for partial messages per socket
+
+  static const int messageHeaderSize = 4; // 4-byte length prefix
 
   @override
   bool get isRunning => _isRunning;
@@ -71,47 +75,69 @@ class LanServerServiceImpl implements LanServerService {
       print('Incoming connection from ${socket.remoteAddress.address}:${socket.remotePort}');
 
       String? peerId;
+      _socketBuffers[socket] = Uint8List(0);
 
       socket.listen(
         (data) async {
           try {
-            final json = utf8.decode(data);
-            final payload = jsonDecode(json) as Map<String, dynamic>;
+            // Append to existing buffer
+            final buffer = _socketBuffers[socket] ?? Uint8List(0);
+            _socketBuffers[socket] = Uint8List.fromList([...buffer, ...data]);
 
-            // Handle handshake
-            if (payload['type'] == 'handshake') {
-              peerId = payload['deviceId'] as String?;
-              print('Handshake received from: $peerId');
-              return;
-            }
+            // Process complete messages from buffer
+            while ((_socketBuffers[socket] ?? Uint8List(0)).length >= messageHeaderSize) {
+              final buf = _socketBuffers[socket]!;
 
-            // Handle clipboard event
-            if (peerId != null) {
-              final event = ClipboardEvent.fromJson(payload);
+              // Read message length (4-byte big-endian)
+              final lengthBytes = buf.sublist(0, messageHeaderSize);
+              final length = ByteData.view(lengthBytes.buffer).getUint32(0);
 
-              // Validate sender
-              if (event.senderDeviceId != peerId) {
-                print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
-                return;
+              // Check if we have the complete message
+              if (buf.length < messageHeaderSize + length) {
+                break; // Wait for more data
               }
 
-              // TODO: Decrypt payload using peerId's public key from roster
+              // Extract message data
+              final messageData = buf.sublist(messageHeaderSize, messageHeaderSize + length);
+              final json = utf8.decode(messageData);
+              final payload = jsonDecode(json) as Map<String, dynamic>;
 
-              _incomingEventsController.add(event);
-              print('Received clipboard event from $peerId: ${event.eventId}');
+              // Handle handshake
+              if (payload['type'] == 'handshake') {
+                peerId = payload['deviceId'] as String?;
+                print('Handshake received from: $peerId');
+              } else if (peerId != null) {
+                // Handle clipboard event
+                final event = ClipboardEvent.fromJson(payload);
+
+                // Validate sender
+                if (event.senderDeviceId != peerId) {
+                  print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
+                } else {
+                  // TODO: Decrypt payload using peerId's public key from roster
+                  _incomingEventsController.add(event);
+                  print('Received clipboard event from $peerId: ${event.eventId}');
+                }
+              }
+
+              // Remove processed message from buffer
+              _socketBuffers[socket] = Uint8List.fromList(buf.sublist(messageHeaderSize + length));
             }
           } catch (e) {
-            print('Error processing incoming data: $e');
+            print('Error processing incoming data from $peerId: $e');
+            socket.close();
           }
         },
         onError: (error) => print('Socket error from $peerId: $error'),
         onDone: () {
           print('Connection closed from $peerId');
+          _socketBuffers.remove(socket);
           socket.close();
         },
       );
     } catch (e) {
       print('Error handling incoming connection: $e');
+      _socketBuffers.remove(socket);
       await socket.close();
     }
   }

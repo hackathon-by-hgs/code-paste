@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import '../../models/network.dart';
-import 'cupertino_network_list.dart';
 
 class CupertinoBottomSheet extends StatefulWidget {
   final List<Network> networks;
@@ -58,10 +57,14 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
               ),
             ],
           ),
-          child: Column(
+          child: ListView(
+            controller: scrollController,
+            padding: EdgeInsets.zero,
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              // Draggable Handle Area
+              // The handle shares the sheet's scroll controller.
               Container(
+                key: const ValueKey('network-sheet-handle'),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -71,8 +74,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                       width: 40,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey3
-                            .resolveFrom(context),
+                        color: CupertinoColors.systemGrey3.resolveFrom(context),
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
@@ -110,8 +112,9 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                                 .textStyle
                                 .copyWith(
                                   fontSize: 13,
-                                  color: CupertinoColors.systemGrey
-                                      .resolveFrom(context),
+                                  color: CupertinoColors.systemGrey.resolveFrom(
+                                    context,
+                                  ),
                                   fontWeight: FontWeight.w400,
                                 ),
                           ),
@@ -143,58 +146,49 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                 ),
               ),
               // Networks list
-              Expanded(
-                child: widget.networks.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                CupertinoIcons.wifi_slash,
-                                size: 48,
-                                color: CupertinoColors.systemGrey3
-                                    .resolveFrom(context),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No Networks Found',
-                                style: CupertinoTheme.of(context)
-                                    .textTheme
-                                    .textStyle
-                                    .copyWith(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Searching for devices...',
-                                style: CupertinoTheme.of(context)
-                                    .textTheme
-                                    .textStyle
-                                    .copyWith(
-                                      fontSize: 13,
-                                      color: CupertinoColors.systemGrey
-                                          .resolveFrom(context),
-                                    ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+              if (widget.networks.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.wifi_slash,
+                          size: 48,
+                          color: CupertinoColors.systemGrey3.resolveFrom(
+                            context,
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: widget.networks.length,
-                        itemBuilder: (context, index) {
-                          final network = widget.networks[index];
-                          return _buildNetworkTile(context, network);
-                        },
-                      ),
-              ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Networks Found',
+                          style: CupertinoTheme.of(context).textTheme.textStyle
+                              .copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Searching for devices...',
+                          style: CupertinoTheme.of(context).textTheme.textStyle
+                              .copyWith(
+                                fontSize: 13,
+                                color: CupertinoColors.systemGrey.resolveFrom(
+                                  context,
+                                ),
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...widget.networks.map(
+                  (network) => _buildNetworkTile(context, network),
+                ),
             ],
           ),
         );
@@ -214,10 +208,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
           color: CupertinoColors.systemGrey6.resolveFrom(context),
           borderRadius: BorderRadius.circular(12),
           border: isConnected
-              ? Border.all(
-                  color: CupertinoColors.systemGreen,
-                  width: 2,
-                )
+              ? Border.all(color: CupertinoColors.systemGreen, width: 2)
               : null,
         ),
         child: Row(
@@ -242,10 +233,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                   Text(
                     network.name,
                     style: CupertinoTheme.of(context).textTheme.textStyle
-                        .copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        .copyWith(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -269,13 +257,12 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                       const SizedBox(width: 6),
                       Text(
                         network.getSignalLabel(),
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .textStyle
+                        style: CupertinoTheme.of(context).textTheme.textStyle
                             .copyWith(
                               fontSize: 12,
-                              color: CupertinoColors.systemGrey
-                                  .resolveFrom(context),
+                              color: CupertinoColors.systemGrey.resolveFrom(
+                                context,
+                              ),
                             ),
                       ),
                     ],
