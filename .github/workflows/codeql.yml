@@ -1,0 +1,39 @@
+name: CodeQL
+
+# Static security analysis for the web app. Runs as its own workflow (not a required merge gate) so
+# a repo without code scanning enabled cannot deadlock merges. CodeQL is free on public repos; on
+# private repos it needs GitHub Advanced Security. Enable code scanning in repo Settings → Security.
+
+on:
+  push:
+    branches: [frontend]
+  pull_request:
+    branches: [frontend]
+  schedule:
+    - cron: '27 3 * * 1' # weekly, catches advisories in dormant code
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
