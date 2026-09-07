@@ -211,7 +211,7 @@ class LanTransportServiceImpl implements LanTransportService {
   @override
   bool isConnectedToPeer(String peerId) {
     final socket = _peerSockets[peerId];
-    return socket != null && !socket.done;
+    return socket != null;
   }
 
   @override

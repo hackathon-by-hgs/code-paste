@@ -121,7 +121,7 @@ class ClipboardEvent {
 
     // Check event ID is valid UUID
     try {
-      const Uuid().parse(eventId);
+      Uuid.parse(eventId);
     } catch (_) {
       return false;
     }
