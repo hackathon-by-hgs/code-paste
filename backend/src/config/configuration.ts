@@ -9,13 +9,25 @@ import { z } from 'zod';
 const seconds = (def: number) => z.coerce.number().int().positive().default(def);
 const bytes = (def: number) => z.coerce.number().int().positive().default(def);
 
+/**
+ * Treats an empty or whitespace-only environment variable as unset.
+ *
+ * "Set but empty" is the normal result of a shell default (`${VAR:-}`), a CI expression that
+ * evaluates to `''`, or a `.env` line with nothing after the `=`. Without this, an empty
+ * `DATABASE_URL` fails `.url()` and the process refuses to start, when the operator's intent was
+ * plainly "not configured". Caught by CI: the matrix leg that deliberately leaves the database
+ * unset was passing `DATABASE_URL: ''`.
+ */
+const optionalEnv = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), schema);
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
 
-    DATABASE_URL: z.string().url().optional(),
+    DATABASE_URL: optionalEnv(z.string().url().optional()),
     DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
     AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters.'),
@@ -25,7 +37,7 @@ const schema = z
     AUTH_REFRESH_TOKEN_TTL_SECONDS: seconds(2592000),
     AUTH_CLOCK_TOLERANCE_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
 
-    ROSTER_SIGNING_SECRET_KEY: z.string().optional(),
+    ROSTER_SIGNING_SECRET_KEY: optionalEnv(z.string().min(1).optional()),
     ROSTER_TTL_SECONDS: seconds(300),
 
     PAIRING_CODE_TTL_SECONDS: seconds(300),

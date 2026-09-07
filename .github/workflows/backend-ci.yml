@@ -119,7 +119,11 @@ jobs:
             echo "::error::A .env file is tracked. Only .env.example may be committed."
             exit 1
           fi
-          if git grep -lE 'BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY' -- . ':!*.md'; then
+          # Docs and specs are excluded: the log-redaction test legitimately contains a PEM header
+          # as a fixture, to prove the scrubber removes it. Real key material would not live in a
+          # spec file, and a check that cries wolf on its own test is a check the next person
+          # in a hurry deletes.
+          if git grep -lE 'BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY' -- . ':!*.md' ':!*.spec.ts'; then
             echo "::error::Private key material found in tracked files."
             exit 1
           fi

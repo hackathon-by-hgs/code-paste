@@ -32,6 +32,19 @@ describe('loadConfig', () => {
     }
   });
 
+  it('treats an empty environment variable as unset', () => {
+    // "Set but empty" is the normal result of a shell default, a CI expression evaluating to '',
+    // or a .env line with nothing after the '='. Refusing to start on that is a footgun — and it
+    // is exactly how the pglite CI leg failed.
+    const config = loadConfig({ ...base, DATABASE_URL: '', ROSTER_SIGNING_SECRET_KEY: '   ' });
+    expect(config.database.url).toBeUndefined();
+    expect(config.roster.signingSecretKey).toBeUndefined();
+  });
+
+  it('still rejects a non-empty but malformed database url', () => {
+    expect(() => loadConfig({ ...base, DATABASE_URL: 'not-a-url' })).toThrow(/DATABASE_URL/);
+  });
+
   it('rejects a session TTL default larger than its maximum', () => {
     expect(() =>
       loadConfig({
