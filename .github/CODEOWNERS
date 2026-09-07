@@ -1,0 +1,7 @@
+# CODEOWNERS for the `frontend` branch (web app).
+# ⚠️ Replace placeholder handles with real usernames/teams before enabling code-owner enforcement
+#    in .github/rulesets (off by default — see docs/CI_CD.md on main).
+
+*                       @hackathon-by-hgs/frontend
+/.github/               @hackathon-by-hgs/maintainers
+/frontend/src/api/      @hackathon-by-hgs/frontend @hackathon-by-hgs/contract-owners

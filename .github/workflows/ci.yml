@@ -1,48 +1,123 @@
 name: Frontend CI
 
+# Belongs to the `frontend` branch only (DEV_GUIDE.md §6). Next.js 16 / React 19 / pnpm / Vitest.
+
 on:
   push:
-    branches: [ frontend ]
+    # `refs/heads/frontend` exists, so a nested `frontend/*` ref is impossible (git D/F conflict).
+    # Feature branches are hyphenated, matching the backend convention.
+    branches: [frontend, 'frontend-*', 'feat/frontend-*']
   pull_request:
-    branches: [ frontend ]
+    branches: [frontend]
+  workflow_dispatch:
+
+# Least privilege by default; jobs opt into more only where they need it.
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
 
 jobs:
-  build:
+  quality:
+    name: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm must be present before setup-node so `cache: pnpm` can find the store.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # Reproducible installs: fail if the lockfile is stale instead of silently resolving new deps.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Unit & integration tests
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+  contract-conformance:
+    name: contract-conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned contracts from main
+        working-directory: .
+        run: |
+          set -euo pipefail
+          contract_ref="$(cat CONTRACTS_VERSION)"
+          git fetch origin --tags --force
+          mkdir -p .contracts
+          git archive "$contract_ref" contracts | tar -x -C .contracts
+          echo "Pinned $contract_ref"
+
+      - name: Assert the consumed contract is present and well-formed
+        working-directory: .
+        # The web app talks to the control plane described by control-plane.yaml. A broken or
+        # missing pin must fail the build here rather than surface as a runtime 4xx in production.
+        # When the app generates a typed client from this spec, replace this with a drift check
+        # (regenerate → `git diff --exit-code`).
+        run: |
+          set -euo pipefail
+          spec=.contracts/contracts/openapi/control-plane.yaml
+          test -f "$spec" || { echo "::error::pinned OpenAPI contract missing"; exit 1; }
+          grep -q 'openapi: 3.1' "$spec" || { echo "::error::pinned OpenAPI is not 3.1"; exit 1; }
+          echo "Pinned control-plane contract present and OpenAPI 3.1."
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
     defaults:
       run:
-        working-directory: ./frontend
-
+        working-directory: .
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-
-    - name: Install pnpm
-      uses: pnpm/action-setup@v3
-      with:
-        version: 9
-
-    - name: Install dependencies
-      run: pnpm install
-
-    - name: Typecheck
-      run: pnpm tsc --noEmit
-
-    - name: Lint
-      run: pnpm run lint
-
-    - name: Test (Unit & Integration)
-      run: pnpm run test
-
-    - name: Build
-      run: pnpm run build
-
-    - name: Contract Conformance
-      run: |
-        # Placeholder for contract vectors conformance testing 
-        # using the pinned CONTRACTS_VERSION
-        echo "Validating against $(cat ../CONTRACTS_VERSION)"
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            frontend
+            ui
+            deps
+            deps-dev
+          requireScope: false
