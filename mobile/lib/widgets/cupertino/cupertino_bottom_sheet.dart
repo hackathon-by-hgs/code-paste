@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import '../../models/network.dart';
 
 class CupertinoBottomSheet extends StatefulWidget {
@@ -147,48 +148,73 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
               ),
               // Networks list
               if (widget.networks.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.wifi_slash,
-                          size: 48,
-                          color: CupertinoColors.systemGrey3.resolveFrom(
-                            context,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Networks Found',
-                          style: CupertinoTheme.of(context).textTheme.textStyle
-                              .copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Searching for devices...',
-                          style: CupertinoTheme.of(context).textTheme.textStyle
-                              .copyWith(
-                                fontSize: 13,
-                                color: CupertinoColors.systemGrey.resolveFrom(
-                                  context,
-                                ),
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.isLoading
+                            ? CupertinoIcons.wifi
+                            : CupertinoIcons.wifi_slash,
+                        size: 48,
+                        color: widget.isLoading
+                            ? CupertinoColors.systemGreen
+                            : CupertinoColors.systemGrey3.resolveFrom(context),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.isLoading
+                            ? 'Searching for Devices'
+                            : 'No Networks Found',
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .textStyle
+                            .copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.isLoading
+                            ? 'Scanning your network for available devices...'
+                            : 'Make sure your devices are on the same network',
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .textStyle
+                            .copyWith(
+                              fontSize: 13,
+                              color: CupertinoColors.systemGrey
+                                  .resolveFrom(context),
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (widget.isLoading) ...[
+                        const SizedBox(height: 24),
+                        const CupertinoActivityIndicator(radius: 14),
                       ],
-                    ),
+                    ],
                   ),
                 )
-              else
+              else ...[
                 ...widget.networks.map(
                   (network) => _buildNetworkTile(context, network),
                 ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Swipe down to dismiss',
+                    style: CupertinoTheme.of(context).textTheme.textStyle
+                        .copyWith(
+                          fontSize: 12,
+                          color: CupertinoColors.systemGrey
+                              .resolveFrom(context),
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -199,32 +225,46 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
   Widget _buildNetworkTile(BuildContext context, Network network) {
     final isConnected = network.isCurrentlyConnected;
 
-    return GestureDetector(
-      onTap: () => widget.onNetworkSelected(network),
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: () {
+        HapticFeedback.mediumImpact();
+        widget.onNetworkSelected(network);
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: CupertinoColors.systemGrey6.resolveFrom(context),
+          color: isConnected
+              ? CupertinoColors.systemGreen.withValues(alpha: 0.1)
+              : CupertinoColors.systemGrey6.resolveFrom(context),
           borderRadius: BorderRadius.circular(12),
-          border: isConnected
-              ? Border.all(color: CupertinoColors.systemGreen, width: 2)
-              : null,
+          border: Border.all(
+            color: isConnected
+                ? CupertinoColors.systemGreen
+                : CupertinoColors.systemGrey4.resolveFrom(context),
+            width: isConnected ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            // Icon
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: isConnected
+                    ? CupertinoColors.systemGreen.withValues(alpha: 0.15)
+                    : CupertinoColors.systemGrey5.resolveFrom(context),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.all(8),
               child: Icon(
                 CupertinoIcons.device_desktop,
                 color: isConnected
                     ? CupertinoColors.systemGreen
                     : CupertinoColors.systemGrey,
-                size: 24,
+                size: 20,
               ),
             ),
-            // Content
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +273,12 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                   Text(
                     network.name,
                     style: CupertinoTheme.of(context).textTheme.textStyle
-                        .copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+                        .copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -241,28 +286,40 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                       if (isConnected)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            'Connected',
-                            style: CupertinoTheme.of(context)
-                                .textTheme
-                                .textStyle
-                                .copyWith(
-                                  fontSize: 12,
-                                  color: CupertinoColors.systemGreen,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.systemGreen
+                                  .withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              'Connected',
+                              style: CupertinoTheme.of(context)
+                                  .textTheme
+                                  .textStyle
+                                  .copyWith(
+                                    fontSize: 11,
+                                    color: CupertinoColors.systemGreen,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
                           ),
                         ),
                       ..._buildSignalBars(network.getSignalBars()),
                       const SizedBox(width: 6),
                       Text(
                         network.getSignalLabel(),
-                        style: CupertinoTheme.of(context).textTheme.textStyle
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .textStyle
                             .copyWith(
                               fontSize: 12,
-                              color: CupertinoColors.systemGrey.resolveFrom(
-                                context,
-                              ),
+                              color: CupertinoColors.systemGrey
+                                  .resolveFrom(context),
                             ),
                       ),
                     ],
@@ -270,7 +327,6 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                 ],
               ),
             ),
-            // Trailing icon
             Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Icon(
@@ -280,7 +336,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                 color: isConnected
                     ? CupertinoColors.systemGreen
                     : CupertinoColors.systemGrey3.resolveFrom(context),
-                size: 22,
+                size: 20,
               ),
             ),
           ],

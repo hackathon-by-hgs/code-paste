@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'secure_logging.dart';
 
 /// Ed25519 Signature Verification
