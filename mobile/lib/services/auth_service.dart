@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math' show Random;
 import 'dart:io' show Platform;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'api_client.dart';
 
 class TokenPair {
@@ -39,30 +40,45 @@ class DeviceCredentials {
   final String deviceId;
   final String deviceName;
   final String publicKey;
+  final String keyFingerprint; // SHA256 of public key, hex encoded
   final String privateKey; // Never sent to server
   final String platform;
   final String appVersion;
   final String protocolVersion;
+  final bool syncEnabled;
+  final bool revoked;
+  final DateTime createdAt;
+  int _sequenceNumber = 0; // Local counter for clipboard events
 
   DeviceCredentials({
     required this.deviceId,
     required this.deviceName,
     required this.publicKey,
+    required this.keyFingerprint,
     required this.privateKey,
     required this.platform,
     required this.appVersion,
     required this.protocolVersion,
-  });
+    this.syncEnabled = true,
+    this.revoked = false,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   factory DeviceCredentials.fromJson(Map<String, dynamic> json) {
     return DeviceCredentials(
       deviceId: json['deviceId'] as String,
       deviceName: json['deviceName'] as String,
       publicKey: json['publicKey'] as String,
+      keyFingerprint: json['keyFingerprint'] as String,
       privateKey: json['privateKey'] as String,
       platform: json['platform'] as String,
       appVersion: json['appVersion'] as String,
       protocolVersion: json['protocolVersion'] as String,
+      syncEnabled: json['syncEnabled'] as bool? ?? true,
+      revoked: json['revoked'] as bool? ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 
@@ -70,11 +86,19 @@ class DeviceCredentials {
     'deviceId': deviceId,
     'deviceName': deviceName,
     'publicKey': publicKey,
+    'keyFingerprint': keyFingerprint,
     'privateKey': privateKey,
     'platform': platform,
     'appVersion': appVersion,
     'protocolVersion': protocolVersion,
+    'syncEnabled': syncEnabled,
+    'revoked': revoked,
+    'createdAt': createdAt.toIso8601String(),
   };
+
+  int getNextSequenceNumber() {
+    return ++_sequenceNumber;
+  }
 }
 
 abstract class AuthService {
@@ -233,6 +257,9 @@ class AuthServiceImpl implements AuthService {
       final publicKeyPem = _encodePublicKey(keyPair.publicKey);
       final privateKeyPem = _encodePrivateKey(keyPair.privateKey);
 
+      // Calculate key fingerprint (SHA256 hex)
+      final keyFingerprint = sha256.convert(utf8.encode(publicKeyPem)).toString();
+
       final platform = Platform.isAndroid ? 'android' : 'ios';
       final appVersion = _appVersion ?? '1.0.0';
       const protocolVersion = '1';
@@ -255,10 +282,16 @@ class AuthServiceImpl implements AuthService {
         deviceId: response['deviceId'] as String,
         deviceName: response['deviceName'] as String? ?? deviceName,
         publicKey: publicKeyPem,
+        keyFingerprint: keyFingerprint,
         privateKey: privateKeyPem,
         platform: platform,
         appVersion: appVersion,
         protocolVersion: protocolVersion,
+        syncEnabled: response['syncEnabled'] as bool? ?? true,
+        revoked: response['revoked'] as bool? ?? false,
+        createdAt: response['createdAt'] != null
+            ? DateTime.parse(response['createdAt'] as String)
+            : null,
       );
 
       // Set bearer token from device registration response
