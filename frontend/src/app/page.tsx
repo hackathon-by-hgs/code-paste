@@ -3,7 +3,7 @@ import { SyncStatus } from '../components/SyncStatus';
 import { DeviceList } from '../components/DeviceList';
 import { SharingSession } from '../components/SharingSession';
 
-export default function Home() {
+const Home = () => {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col font-sans">
       <Header />
@@ -15,3 +15,5 @@ export default function Home() {
     </div>
   );
 }
+
+export default Home;

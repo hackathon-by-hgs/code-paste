@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export function SyncStatus() {
+export const SyncStatus = () => {
   const [isSyncing, setIsSyncing] = useState(true);
 
   const handleToggleSync = () => setIsSyncing(!isSyncing);

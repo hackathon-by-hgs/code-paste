@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getSession, createSession, joinSession, revokeMember } from '../api/sharing';
 import type { ShareSession } from '../api/types';
 
-export function SharingSession() {
+export const SharingSession = () => {
   const [session, setSession] = useState<ShareSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [joinCodeInput, setJoinCodeInput] = useState('');

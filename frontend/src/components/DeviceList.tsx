@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getDevices, registerDevice, revokeDevice } from '../api/devices';
 import type { Device } from '../api/types';
 
-export function DeviceList() {
+export const DeviceList = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
 

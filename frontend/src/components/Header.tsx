@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { login, logout, getCurrentUser } from '../api/auth';
 import type { User } from '../api/types';
 
-export function Header() {
+export const Header = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
