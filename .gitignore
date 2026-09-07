@@ -1,0 +1,14 @@
+# Pinned contracts are fetched from a tag on main, never committed (DEV_GUIDE.md 5)
+.contracts/
+
+# Secrets. Only .env.example is tracked (DEV_GUIDE.md 9)
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+.DS_Store
