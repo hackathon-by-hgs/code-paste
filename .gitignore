@@ -1,0 +1,22 @@
+# Contracts fetched from main
+.contracts/
+
+# Environment files
+.env
+
+# Build artifacts
+mobile/build/
+mobile/.dart_tool/
+mobile/.packages
+mobile/**/*.g.dart
+mobile/**/*.config.dart
+
+# IDE
+.idea/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

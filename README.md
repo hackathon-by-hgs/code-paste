@@ -1,0 +1,49 @@
+# Mobile Client
+
+iOS and Android cross-device clipboard sync application built with Flutter.
+
+## Quick start
+
+```bash
+# Get the shared branch and docs
+git remote set-branches --add origin main
+git fetch origin main
+git worktree add ../code-paste-docs main
+
+# Install dependencies
+cd mobile
+flutter pub get
+
+# Run on iOS (requires macOS)
+flutter run -d ios
+
+# Run on Android
+flutter run -d android
+```
+
+## Architecture
+
+See `../code-paste-docs/docs/SYSTEM_DESIGN.md` for the system design.
+
+This branch implements:
+- Clipboard integration layer (platform-specific via native channels)
+- Device pairing and discovery UI
+- Sharing session management
+- Secure peer transport (LAN-first)
+- Protocol compliance
+
+## Testing
+
+```bash
+cd mobile
+flutter test
+```
+
+## Security notes
+
+- All clipboard data is treated as sensitive
+- Local storage is encrypted
+- Network communication is encrypted (see docs on main for protocol details)
+- No clipboard data is logged
+
+See `../code-paste-docs/docs/SECURITY.md` for details.

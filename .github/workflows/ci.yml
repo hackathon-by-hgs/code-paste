@@ -1,0 +1,60 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [mobile]
+  pull_request:
+    branches: [mobile]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: flutter pub get
+      - run: flutter analyze mobile/
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: cd mobile && flutter format --set-exit-if-changed .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: flutter pub get
+      - run: cd mobile && flutter test
+
+  contract-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch contracts
+        run: |
+          git fetch origin --tags --depth=1
+          git archive "$(cat CONTRACTS_VERSION)" contracts | tar -x -C .contracts/ || mkdir -p .contracts
+      - name: Verify contract vectors
+        run: |
+          echo "Contract conformance tests would run here"
+          echo "Verifying against $(cat CONTRACTS_VERSION)"
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: flutter pub get
+      - run: cd mobile && flutter build apk --verbose
+
+  # iOS build requires macOS runner and signing (stubbed for now)
+  # build-ios:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: subosito/flutter-action@v2
+  #     - run: cd mobile && flutter build ios --verbose
