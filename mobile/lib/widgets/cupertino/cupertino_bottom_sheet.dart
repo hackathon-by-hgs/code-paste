@@ -61,27 +61,22 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
           child: Column(
             children: [
               // Draggable Handle Area
-              GestureDetector(
-                onVerticalDragUpdate: (_) {
-                  // Handle is draggable via the sheet itself
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Drag handle indicator
-                      Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.systemGrey3
-                              .resolveFrom(context),
-                          borderRadius: BorderRadius.circular(2.5),
-                        ),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle indicator
+                    Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.systemGrey3
+                            .resolveFrom(context),
+                        borderRadius: BorderRadius.circular(2.5),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               // Title section
