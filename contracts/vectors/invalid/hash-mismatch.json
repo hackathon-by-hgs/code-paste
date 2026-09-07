@@ -1,0 +1,17 @@
+{
+  "name": "hash-mismatch",
+  "rejectedBy": "semantic",
+  "reason": "Hash does not match the payload: tampering or corruption in transit",
+  "event": {
+    "version": 1,
+    "eventId": "3f2b1c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d",
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": 0,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 5,
+    "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "payload": "hello"
+  }
+}

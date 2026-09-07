@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.code-paste.dev/protocol-v1/device.schema.json",
+  "title": "Device v1",
+  "description": "Control-plane device representation. Public projection only: never contains private key material.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "platform", "appVersion", "protocolVersion", "publicKey", "keyFingerprint", "capabilities", "syncEnabled", "revoked", "createdAt"],
+  "properties": {
+    "id": { "$ref": "#/$defs/deviceId" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "platform": { "$ref": "#/$defs/platform" },
+    "appVersion": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[0-9A-Za-z.+-]+$" },
+    "protocolVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
+    "publicKey": { "$ref": "#/$defs/publicKey" },
+    "keyFingerprint": { "$ref": "#/$defs/keyFingerprint" },
+    "capabilities": { "$ref": "#/$defs/capabilities" },
+    "syncEnabled": { "type": "boolean", "description": "User-controlled pause switch. A paused device is excluded from peer rosters." },
+    "revoked": { "type": "boolean" },
+    "revokedAt": { "type": ["string", "null"], "format": "date-time" },
+    "lastSeenAt": { "type": ["string", "null"], "format": "date-time" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "deviceId": { "type": "string", "pattern": "^cp_dev_[0-9a-hjkmnp-tv-z]{26}$", "description": "Opaque public identifier. Never an internal database key." },
+    "platform": { "enum": ["macos", "windows", "linux", "ios", "android", "web"] },
+    "publicKey": { "type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$", "description": "Ed25519 public key, 32 raw bytes, standard base64. Public half only, always." },
+    "keyFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "sha256 of the raw 32-byte public key. This is what LAN discovery advertises." },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentTypes"],
+      "properties": {
+        "contentTypes": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "enum": ["text/plain", "image/png", "image/jpeg"] } },
+        "maxPayloadBytes": { "type": "integer", "minimum": 0, "maximum": 10485760 }
+      }
+    }
+  }
+}

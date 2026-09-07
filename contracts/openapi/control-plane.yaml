@@ -1,0 +1,889 @@
+openapi: 3.1.0
+info:
+  title: Cross-Device Clipboard — Control Plane
+  version: 1.0.0
+  description: |
+    The control plane. It owns identity, device registration, authorization, share sessions and
+    revocation.
+
+    **It is not the clipboard transport.** No endpoint in this document accepts, returns, relays or
+    stores clipboard content. Clipboard payloads move device-to-device over the LAN data plane.
+    The single most important endpoint here is `GET /v1/authz/peer-set`, which tells an agent who
+    it may talk to and how to recognise them; everything else exists to make that answer correct.
+
+    ## Versioning (closes SPEC_CONTRACT.md gap #8)
+
+    * **API version** is in the URL path (`/v1`). Additive changes (new optional fields, new
+      endpoints) ship inside `/v1`. Anything that could break an existing client gets `/v2`.
+    * **Clipboard protocol version** is independent and travels in payloads (`protocolVersion`).
+      An API version supports a declared set of protocol versions; see `GET /v1/protocol`.
+    * Clients SHOULD send `X-CodePaste-Client` (`<domain>/<appVersion>`) for diagnostics.
+    * Deprecation is announced with the `Deprecation` and `Sunset` response headers before a
+      version is withdrawn. A contract is never silently redefined.
+  license:
+    name: UNLICENSED
+servers:
+  - url: https://api.code-paste.example/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: auth
+    description: Account identity and token lifecycle
+  - name: devices
+    description: Device registration, lifecycle and revocation
+  - name: authz
+    description: Peer authorization distribution — the endpoint the product turns on
+  - name: share-sessions
+    description: Explicit, temporary sharing
+  - name: protocol
+    description: Version negotiation and policy
+
+security:
+  - bearerAuth: []
+
+paths:
+  /protocol:
+    get:
+      tags: [protocol]
+      summary: Supported protocol versions and payload limits
+      description: Unauthenticated. Lets a client discover compatibility before attempting to register.
+      security: []
+      responses:
+        '200':
+          description: Protocol policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProtocolPolicy' }
+
+  /auth/signup:
+    post:
+      tags: [auth]
+      summary: Create an account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignupRequest' }
+      responses:
+        '201':
+          description: Account created; tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: |
+            Email already registered. This endpoint deliberately DOES return a distinct conflict,
+            because signup is an account-creation oracle by nature and hiding it breaks usability
+            without hiding anything (an attacker learns the same fact by attempting signup).
+            `POST /auth/login` behaves the opposite way and never distinguishes causes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Exchange credentials for tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: |
+            Invalid credentials. Returns the single code `invalid_credentials` for an unknown
+            email, a wrong password and a disabled account alike — the response never reveals
+            which. Timing is equalised by always performing a password verification.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate a refresh token
+      description: |
+        Single-use. Every refresh returns a NEW refresh token and invalidates the presented one.
+        Presenting an already-used token is treated as theft: the entire token family is revoked
+        immediately and `token_reused` is returned. See ADR-004.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401':
+          description: Expired, unknown, revoked or reused refresh token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke a refresh token family
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204':
+          description: |
+            Logged out. Idempotent, and returns 204 even for an unknown token so that logout is
+            not a token-validity oracle.
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: The authenticated principal
+      responses:
+        '200':
+          description: Current user and, when the caller is a device, its device identity
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /devices/pairing-codes:
+    post:
+      tags: [devices]
+      summary: Mint a short-lived device pairing code
+      description: |
+        Called from an authenticated **browser** session. Returns a short human-transcribable code
+        shown once. The agent then calls `POST /devices` with it. Closes SPEC_CONTRACT.md gap #5;
+        see ADR-005.
+      responses:
+        '201':
+          description: Pairing code minted. The plaintext code is returned exactly once and is never stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingCode' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /devices:
+    post:
+      tags: [devices]
+      summary: Register a device
+      description: |
+        Authorised by a pairing code, not a bearer token — the agent has no session yet. The
+        response is the only time device credentials are issued.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterDeviceRequest' }
+      responses:
+        '201':
+          description: Device registered; device-bound tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceRegistration' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Invalid, expired or already-consumed pairing code
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: This public key is already registered to this account (`conflict`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Unsupported protocol version (`unsupported_protocol_version`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      tags: [devices]
+      summary: List the caller's devices
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: cursor, schema: { type: string, maxLength: 256 } }
+        - { in: query, name: includeRevoked, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Devices owned by the authenticated user, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /devices/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/DeviceId' } }
+    get:
+      tags: [devices]
+      summary: Inspect one device
+      responses:
+        '200':
+          description: Device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [devices]
+      summary: Rename a device or pause/resume its syncing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDeviceRequest' }
+      responses:
+        '200':
+          description: Updated device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The device is revoked; revoked devices are immutable (`device_revoked`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [devices]
+      summary: Remove a device permanently
+      description: Revokes first, then deletes. Removal is never weaker than revocation.
+      responses:
+        '204': { description: Removed }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /devices/{id}/revoke:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/DeviceId' } }
+    post:
+      tags: [devices]
+      summary: Revoke a device
+      description: |
+        Atomically marks the device revoked, destroys every refresh-token family bound to it, and
+        bumps the roster version of every device that could previously reach it. Idempotent.
+      responses:
+        '200':
+          description: Revoked device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /devices/{id}/heartbeat:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/DeviceId' } }
+    post:
+      tags: [devices]
+      summary: Report liveness
+      description: |
+        Callable only by the device itself, using its own device-bound token. Writes are coalesced
+        server-side, so calling this more often than the coalescing window is harmless and cheap.
+        Carries no body: liveness is metadata, never content.
+      responses:
+        '204': { description: Recorded (or coalesced away) }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: The token is not bound to this device (`forbidden`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /authz/peer-set:
+    get:
+      tags: [authz]
+      summary: The signed peer roster for the calling device
+      description: |
+        Requires a **device-bound** token; a browser session cannot fetch a roster because a
+        browser is not a clipboard peer.
+
+        Returns the set of peers this device may exchange clipboard data with, each with the
+        public key needed to verify it on the LAN. The roster is short-lived and signed, so it
+        keeps working during a brief control-plane outage without becoming forgeable, and stale
+        authorization expires on its own rather than requiring a delivered revocation.
+
+        Excluded from the roster: the device itself, revoked devices, sync-paused devices,
+        protocol-incompatible devices, and members of expired or revoked sessions.
+      responses:
+        '200':
+          description: Signed roster
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignedPeerRoster' }
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: Always `no-store`. A roster is authorization material.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Caller is not a device, or the device is revoked (`forbidden` / `device_revoked`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /authz/roster-keys:
+    get:
+      tags: [authz]
+      summary: Public keys that sign rosters
+      description: |
+        Unauthenticated, so an agent can verify a cached roster while unable to authenticate.
+        Contains public keys only. Supports rotation: verifiers match on `keyId`.
+      security: []
+      responses:
+        '200':
+          description: Active roster signing keys
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RosterKeyList' }
+
+  /share-sessions:
+    post:
+      tags: [share-sessions]
+      summary: Create a sharing session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateShareSessionRequest' }
+      responses:
+        '201':
+          description: |
+            Session created. `joinCode` is returned exactly once, here, and is stored only as a
+            hash. It cannot be retrieved later.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSessionWithJoinCode' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      tags: [share-sessions]
+      summary: List sessions the caller owns or belongs to
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: cursor, schema: { type: string, maxLength: 256 } }
+        - { in: query, name: status, schema: { enum: [active, expired, revoked] } }
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSessionList' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /share-sessions/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/SessionId' } }
+    get:
+      tags: [share-sessions]
+      summary: Inspect a session, including who can receive clipboard data
+      description: Members only. Answers RULES.md §10 — "sharing should show who can receive clipboard data".
+      responses:
+        '200':
+          description: Session with members
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /share-sessions/{id}/join:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/SessionId' } }
+    post:
+      tags: [share-sessions]
+      summary: Join a session with its join code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JoinShareSessionRequest' }
+      responses:
+        '200':
+          description: Joined (idempotent for an existing member)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Wrong join code, or membership was revoked (`forbidden`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Session expired or revoked (`session_expired`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /share-sessions/{id}/leave:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/SessionId' } }
+    post:
+      tags: [share-sessions]
+      summary: Leave a session
+      description: An owner cannot leave; an owner expires the session instead.
+      responses:
+        '204': { description: Left }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: The owner cannot leave their own session (`forbidden`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /share-sessions/{id}/revoke-member:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/SessionId' } }
+    post:
+      tags: [share-sessions]
+      summary: Revoke a member (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevokeMemberRequest' }
+      responses:
+        '200':
+          description: Updated session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Caller is not the owner, or tried to revoke the owner (`forbidden`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /share-sessions/{id}/expire:
+    parameters:
+      - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/SessionId' } }
+    post:
+      tags: [share-sessions]
+      summary: End a session immediately (owner only)
+      description: Idempotent. Takes effect for every member at the next roster fetch, and immediately for connected clients.
+      responses:
+        '200':
+          description: Expired session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareSession' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Caller is not the owner (`forbidden`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Short-lived access token. Two principal kinds exist and they are not interchangeable:
+        a **browser** token (no `did` claim) manages the account; a **device** token (with `did`)
+        additionally acts as a clipboard peer. Only a device token may fetch a peer roster,
+        heartbeat, or open the realtime socket.
+
+  responses:
+    BadRequest:
+      description: Request failed validation (`invalid_request`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthenticated:
+      description: Missing, malformed or expired access token (`unauthenticated` / `token_expired`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: |
+        Not found (`not_found`). Returned rather than 403 for a resource owned by another user, so
+        the API is not an existence oracle for other accounts' devices and sessions.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many requests (`rate_limited`)
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    DeviceId:
+      type: string
+      pattern: '^cp_dev_[0-9a-hjkmnp-tv-z]{26}$'
+      examples: ['cp_dev_01h2xcejqtf2nbrexx3vqjhp41']
+    UserId:
+      type: string
+      pattern: '^cp_usr_[0-9a-hjkmnp-tv-z]{26}$'
+    SessionId:
+      type: string
+      pattern: '^cp_ses_[0-9a-hjkmnp-tv-z]{26}$'
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message:
+              type: string
+              maxLength: 256
+              description: Human-readable and safe to display. Never contains stack traces, tokens, keys or clipboard data.
+            details:
+              type: array
+              maxItems: 32
+              description: Present only for `invalid_request`. Field-level validation failures.
+              items:
+                type: object
+                additionalProperties: false
+                required: [path, message]
+                properties:
+                  path: { type: string, maxLength: 128 }
+                  message: { type: string, maxLength: 256 }
+            requestId:
+              type: string
+              description: Correlation id for support and log lookup. Carries no user data.
+
+    ErrorCode:
+      enum:
+        - invalid_request
+        - unauthenticated
+        - invalid_credentials
+        - token_expired
+        - token_reused
+        - forbidden
+        - not_found
+        - conflict
+        - device_revoked
+        - session_expired
+        - not_a_member
+        - payload_too_large
+        - unsupported_protocol_version
+        - rate_limited
+        - internal
+
+    ProtocolPolicy:
+      type: object
+      additionalProperties: false
+      required: [apiVersion, supportedProtocolVersions, currentProtocolVersion, contractsVersion, limits]
+      properties:
+        apiVersion: { type: string, examples: ['v1'] }
+        supportedProtocolVersions: { type: array, items: { type: integer }, examples: [[1]] }
+        currentProtocolVersion: { type: integer, examples: [1] }
+        contractsVersion: { type: string, examples: ['protocol-v1.0.0'] }
+        limits:
+          type: object
+          additionalProperties: false
+          required: ['text/plain', 'image/png', 'image/jpeg']
+          properties:
+            'text/plain': { type: integer, examples: [1048576] }
+            'image/png': { type: integer, examples: [10485760] }
+            'image/jpeg': { type: integer, examples: [10485760] }
+
+    SignupRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+          description: Minimum 12 characters. Length is the only strength rule; composition rules push users toward predictable passwords.
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string, minLength: 20, maxLength: 512 }
+
+    TokenPair:
+      type: object
+      additionalProperties: false
+      required: [accessToken, refreshToken, tokenType, expiresIn, user]
+      properties:
+        accessToken: { type: string, description: JWT. Short-lived. }
+        refreshToken: { type: string, description: Opaque, single-use, rotated on every refresh. }
+        tokenType: { const: Bearer }
+        expiresIn: { type: integer, description: Access-token lifetime in seconds. }
+        user: { $ref: '#/components/schemas/User' }
+
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, email, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/UserId' }
+        email: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+
+    Me:
+      type: object
+      additionalProperties: false
+      required: [user, principal]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        principal:
+          type: string
+          enum: [browser, device]
+          description: Which kind of token authenticated this call.
+        device:
+          oneOf:
+            - { $ref: '#/components/schemas/Device' }
+            - { type: 'null' }
+          description: Present only when `principal` is `device`.
+
+    PairingCode:
+      type: object
+      additionalProperties: false
+      required: [code, expiresAt, expiresInSeconds]
+      properties:
+        code:
+          type: string
+          pattern: '^[0-9A-HJ-NP-Z]{8}$'
+          description: |
+            Eight characters from a Crockford-style alphabet with I, L, O and U removed, so it
+            cannot be misread or spell anything. Shown once, never retrievable, single use.
+          examples: ['K7M2QX9P']
+        expiresAt: { type: string, format: date-time }
+        expiresInSeconds: { type: integer, examples: [300] }
+
+    RegisterDeviceRequest:
+      type: object
+      additionalProperties: false
+      required: [pairingCode, name, platform, appVersion, protocolVersion, publicKey, capabilities]
+      properties:
+        pairingCode: { type: string, pattern: '^[0-9A-HJ-NP-Z]{8}$' }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        platform: { enum: [macos, windows, linux, ios, android, web] }
+        appVersion: { type: string, minLength: 1, maxLength: 32, pattern: '^[0-9A-Za-z.+-]+$' }
+        protocolVersion: { type: integer, minimum: 1 }
+        publicKey:
+          type: string
+          pattern: '^[A-Za-z0-9+/]{43}=$'
+          description: Ed25519 public key, 32 raw bytes, base64. The private key never leaves the device.
+        capabilities:
+          type: object
+          additionalProperties: false
+          required: [contentTypes]
+          properties:
+            contentTypes:
+              type: array
+              minItems: 1
+              maxItems: 16
+              uniqueItems: true
+              items: { enum: ['text/plain', 'image/png', 'image/jpeg'] }
+            maxPayloadBytes: { type: integer, minimum: 0, maximum: 10485760 }
+
+    DeviceRegistration:
+      type: object
+      additionalProperties: false
+      required: [device, credentials]
+      properties:
+        device: { $ref: '#/components/schemas/Device' }
+        credentials: { $ref: '#/components/schemas/TokenPair' }
+
+    UpdateDeviceRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        syncEnabled:
+          type: boolean
+          description: The instant pause switch. A paused device stops appearing in every peer roster.
+
+    Device:
+      type: object
+      additionalProperties: false
+      required: [id, name, platform, appVersion, protocolVersion, publicKey, keyFingerprint, capabilities, syncEnabled, revoked, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/DeviceId' }
+        name: { type: string }
+        platform: { enum: [macos, windows, linux, ios, android, web] }
+        appVersion: { type: string }
+        protocolVersion: { type: integer }
+        publicKey: { type: string, description: Public half only. A private key is never returned by any endpoint. }
+        keyFingerprint: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        capabilities:
+          type: object
+          properties:
+            contentTypes: { type: array, items: { type: string } }
+            maxPayloadBytes: { type: integer }
+        syncEnabled: { type: boolean }
+        revoked: { type: boolean }
+        revokedAt: { type: ['string', 'null'], format: date-time }
+        lastSeenAt: { type: ['string', 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    DeviceList:
+      type: object
+      additionalProperties: false
+      required: [data, nextCursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Device' } }
+        nextCursor:
+          type: ['string', 'null']
+          description: Opaque. Pass back as `cursor`. Null when there are no further pages.
+
+    SignedPeerRoster:
+      type: object
+      additionalProperties: false
+      required: [payload, signature]
+      description: |
+        Detached-signed opaque bytes. Verify the signature over the decoded `payload` FIRST, then
+        parse. See `contracts/schema/peer-roster.schema.json` for the payload shape and the
+        reasoning behind signing bytes rather than an object.
+      properties:
+        payload: { type: string, description: base64 of the UTF-8 JSON PeerRoster. }
+        signature:
+          type: object
+          additionalProperties: false
+          required: [algorithm, keyId, value]
+          properties:
+            algorithm: { const: ed25519 }
+            keyId: { type: string, pattern: '^cp_rk_[0-9a-hjkmnp-tv-z]{26}$' }
+            value: { type: string }
+
+    RosterKeyList:
+      type: object
+      additionalProperties: false
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [keyId, algorithm, publicKey]
+            properties:
+              keyId: { type: string, pattern: '^cp_rk_[0-9a-hjkmnp-tv-z]{26}$' }
+              algorithm: { const: ed25519 }
+              publicKey: { type: string, pattern: '^[A-Za-z0-9+/]{43}=$' }
+
+    CreateShareSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          default: 3600
+          description: Capped server-side. "Temporary sharing is actually temporary" is enforced here, not in the UI.
+
+    JoinShareSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [joinCode]
+      properties:
+        joinCode: { type: string, pattern: '^[0-9A-HJ-NP-Z]{8}$' }
+
+    RevokeMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [userId]
+      properties:
+        userId: { $ref: '#/components/schemas/UserId' }
+
+    ShareSession:
+      type: object
+      additionalProperties: false
+      required: [id, ownerUserId, status, expiresAt, createdAt, members]
+      properties:
+        id: { $ref: '#/components/schemas/SessionId' }
+        ownerUserId: { $ref: '#/components/schemas/UserId' }
+        status: { enum: [active, expired, revoked] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        members:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [userId, email, role, joinedAt, revoked]
+            properties:
+              userId: { $ref: '#/components/schemas/UserId' }
+              email:
+                type: string
+                description: Shown so a user can see exactly who can receive their clipboard data.
+              role: { enum: [owner, member] }
+              joinedAt: { type: string, format: date-time }
+              revoked: { type: boolean }
+              revokedAt: { type: ['string', 'null'], format: date-time }
+
+    ShareSessionWithJoinCode:
+      allOf:
+        - { $ref: '#/components/schemas/ShareSession' }
+        - type: object
+          required: [joinCode]
+          properties:
+            joinCode:
+              type: string
+              pattern: '^[0-9A-HJ-NP-Z]{8}$'
+              description: Returned once at creation. Stored only as a hash; not retrievable afterwards.
+
+    ShareSessionList:
+      type: object
+      additionalProperties: false
+      required: [data, nextCursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/ShareSession' } }
+        nextCursor: { type: ['string', 'null'] }
