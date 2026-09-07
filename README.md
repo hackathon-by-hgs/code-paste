@@ -1,65 +1,39 @@
-# Mobile Client
+# Cross-Device Clipboard
 
-iOS and Android cross-device clipboard sync application built with Flutter.
+A simplicity-first clipboard synchronization system.
 
-## Quick start
+## Vision
 
-```bash
-# Get the shared branch and docs
-git remote set-branches --add origin main
-git fetch origin main
-git worktree add ../code-paste-docs main
+Copy on one device.
 
-# Install dependencies
-cd mobile
-flutter pub get
+Paste on another.
 
-# Run on iOS (requires macOS)
-flutter run -d ios
-
-# Run on Android
-flutter run -d android
-```
+No manual networking configuration.
 
 ## Architecture
 
-See `../code-paste-docs/docs/SYSTEM_DESIGN.md` for the system design.
+- Web: account/device/sharing management.
+- Desktop: seamless background clipboard agent.
+- Mobile: platform-approved clipboard/share integration.
+- API: identity and authorization control plane.
+- LAN: encrypted local clipboard data plane.
+- Future: remote relay.
 
-This branch implements:
-- Clipboard integration layer (platform-specific via native channels)
-- Device pairing and discovery UI
-- Sharing session management
-- Secure peer transport (LAN-first)
-- Protocol compliance
+## Important security principle
 
-## Testing
+Being on the same Wi-Fi is not enough to receive clipboard data.
 
-```bash
-cd mobile
-flutter test
-```
+Only explicitly authorized users/devices may receive it.
 
-## Security notes
+## Documentation
 
-- All clipboard data is treated as sensitive
-- Local storage is encrypted
-- Network communication is encrypted (see docs on main for protocol details)
-- No clipboard data is logged
+Start with:
 
-See `../code-paste-docs/docs/SECURITY.md` for details.
+1. `CLAUDE.md`
+2. `DEV_GUIDE.md` — repository/branch layout and how to check out a domain
+3. `docs/SYSTEM_DESIGN.md`
+4. `docs/RULES.md`
+5. `docs/SECURITY.md`
+6. `docs/PROTOCOL.md`
 
-## Android CI downloads
-
-Mobile CI builds release-mode APKs with `--split-per-abi` on pushes and pull
-requests to `mobile`. Download the `android-apks` workflow artifact for ARMv7,
-ARM64, and x86_64 APKs plus SHA-256 checksums.
-
-After formatting, analysis, tests, the pinned-contract fetch, and the APK build
-pass, pushes to `mobile` publish a GitHub prerelease named `mobile-build-<run number>`.
-Manual workflow runs on `mobile` use the same flow. Pull requests never publish.
-The release targets the exact built commit and uses the built-in `GITHUB_TOKEN`;
-no personal access token is needed. Contract vector execution is still pending.
-
-The current Gradle configuration signs with a debug key. These are test builds;
-CI signing keys may differ across runs, requiring an uninstall before reinstalling.
-Production distribution needs a persistent release signing key.
+Agents should also read `.codex/skills/*` relevant to their task.

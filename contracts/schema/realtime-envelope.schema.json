@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.code-paste.dev/protocol-v1/realtime-envelope.schema.json",
+  "title": "RealtimeEnvelope v1",
+  "description": "Control-plane WebSocket message envelope. Carries authorization and state-change notifications ONLY.\n\nThis channel MUST NOT carry clipboard payloads. Its purpose is the inverse: it tells an agent that its cached authorization is stale, so the agent re-fetches a roster and continues to move clipboard data device-to-device. Every message is bounded, typed and versioned. See ADR-006.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "type", "ts"],
+  "properties": {
+    "v": { "const": 1, "description": "Envelope version, independent of the clipboard protocol version." },
+    "type": { "$ref": "#/$defs/messageType" },
+    "id": { "type": "string", "pattern": "^[0-9a-hjkmnp-tv-z]{26}$", "description": "Correlation id. Echoed by the peer in a response or ack." },
+    "ts": { "type": "string", "format": "date-time" },
+    "data": { "type": "object", "description": "Type-specific body. Validated per message type by the receiver." }
+  },
+  "$defs": {
+    "messageType": {
+      "oneOf": [
+        { "$ref": "#/$defs/clientToServer" },
+        { "$ref": "#/$defs/serverToClient" }
+      ]
+    },
+    "clientToServer": {
+      "enum": ["ping", "device.heartbeat", "roster.request", "ack"],
+      "description": "ping: liveness. device.heartbeat: coalesced last-seen update. roster.request: ask for a fresh roster out of band. ack: acknowledge a correlated server message.\n\nNote what is absent: there is no client-to-server message that carries clipboard content, by design."
+    },
+    "serverToClient": {
+      "enum": [
+        "connection.ready",
+        "pong",
+        "authorization.changed",
+        "device.revoked",
+        "device.sync-toggled",
+        "session.membership.changed",
+        "session.expired",
+        "roster.invalidated",
+        "protocol.unsupported",
+        "error"
+      ],
+      "description": "connection.ready: authenticated, carries negotiated versions. authorization.changed / roster.invalidated: cached authorization is stale, re-fetch. device.revoked: this device is revoked and MUST stop syncing and disconnect. session.*: membership or lifetime changed. error: bounded, non-leaking error."
+    },
+    "connectionReady": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deviceId", "userId", "protocolVersion", "envelopeVersion", "heartbeatIntervalSeconds", "rosterVersion"],
+      "properties": {
+        "deviceId": { "$ref": "device.schema.json#/$defs/deviceId" },
+        "userId": { "$ref": "share-session.schema.json#/$defs/userId" },
+        "protocolVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
+        "envelopeVersion": { "const": 1 },
+        "heartbeatIntervalSeconds": { "type": "integer", "minimum": 5, "maximum": 300 },
+        "rosterVersion": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "authorizationChanged": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "rosterVersion"],
+      "properties": {
+        "reason": { "enum": ["device-registered", "device-revoked", "device-removed", "sync-toggled", "session-joined", "session-left", "session-member-revoked", "session-expired"] },
+        "rosterVersion": { "type": "integer", "minimum": 0, "description": "The version the client should now be able to fetch. Lets a client detect that it is behind without polling." },
+        "sessionId": { "oneOf": [{ "$ref": "share-session.schema.json#/$defs/sessionId" }, { "type": "null" }] }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": { "$ref": "#/$defs/errorCode" },
+        "message": { "type": "string", "maxLength": 256, "description": "Human-readable, non-sensitive. MUST NOT contain tokens, keys, stack traces or clipboard data." },
+        "correlationId": { "type": "string", "pattern": "^[0-9a-hjkmnp-tv-z]{26}$" }
+      }
+    },
+    "errorCode": {
+      "enum": [
+        "unauthenticated",
+        "forbidden",
+        "device_revoked",
+        "unsupported_protocol_version",
+        "invalid_message",
+        "message_too_large",
+        "rate_limited",
+        "connection_limit_exceeded",
+        "heartbeat_timeout",
+        "internal"
+      ]
+    }
+  }
+}

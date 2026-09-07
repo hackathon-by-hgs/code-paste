@@ -1,0 +1,16 @@
+{
+  "name": "text-large-sequence",
+  "description": "Large sequence number near the safe-integer boundary",
+  "event": {
+    "version": 1,
+    "eventId": "33333333-4444-4555-8666-777777777777",
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": 9007199254740990,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 1,
+    "hash": "sha256:2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "payload": "x"
+  }
+}

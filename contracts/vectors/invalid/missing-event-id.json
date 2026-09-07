@@ -1,0 +1,16 @@
+{
+  "name": "missing-event-id",
+  "rejectedBy": "schema",
+  "reason": "eventId is required: without it deduplication and loop prevention cannot work",
+  "event": {
+    "version": 1,
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": 0,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 5,
+    "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+    "payload": "hello"
+  }
+}

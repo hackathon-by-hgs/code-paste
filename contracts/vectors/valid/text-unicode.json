@@ -1,0 +1,16 @@
+{
+  "name": "text-unicode",
+  "description": "Multi-byte UTF-8: declared size is BYTES, not characters",
+  "event": {
+    "version": 1,
+    "eventId": "22222222-3333-4444-8555-666666666666",
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": 2,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 17,
+    "hash": "sha256:0262e1f19468e83022f3583e5820ab44e9524560b78fa0aa4faeb5ae11c73622",
+    "payload": "héllo → 世界"
+  }
+}

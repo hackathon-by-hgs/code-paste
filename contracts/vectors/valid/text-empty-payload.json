@@ -1,0 +1,16 @@
+{
+  "name": "text-empty-payload",
+  "description": "Empty clipboard text is representable and MUST be accepted",
+  "event": {
+    "version": 1,
+    "eventId": "11111111-2222-4333-8444-555555555555",
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": 1,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 0,
+    "hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "payload": ""
+  }
+}

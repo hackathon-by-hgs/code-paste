@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.code-paste.dev/protocol-v1/share-session.schema.json",
+  "title": "ShareSession v1",
+  "description": "Explicit, temporary sharing relationship. Membership is the authorization boundary; network locality is not.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "ownerUserId", "status", "expiresAt", "createdAt", "members"],
+  "properties": {
+    "id": { "$ref": "#/$defs/sessionId" },
+    "ownerUserId": { "$ref": "#/$defs/userId" },
+    "status": { "enum": ["active", "expired", "revoked"] },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "members": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/member" } }
+  },
+  "$defs": {
+    "sessionId": { "type": "string", "pattern": "^cp_ses_[0-9a-hjkmnp-tv-z]{26}$" },
+    "userId": { "type": "string", "pattern": "^cp_usr_[0-9a-hjkmnp-tv-z]{26}$" },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userId", "role", "joinedAt", "revoked"],
+      "properties": {
+        "userId": { "$ref": "#/$defs/userId" },
+        "role": { "enum": ["owner", "member"] },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "revoked": { "type": "boolean" },
+        "revokedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}
