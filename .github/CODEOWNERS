@@ -1,0 +1,8 @@
+# CODEOWNERS for the `mobile` branch (iOS/Android Flutter client).
+# ⚠️ Replace placeholder handles with real usernames/teams before enabling code-owner enforcement
+#    in .github/rulesets (off by default — see docs/CI_CD.md on main).
+
+*                                        @hackathon-by-hgs/mobile
+/mobile/android/                         @hackathon-by-hgs/mobile
+/mobile/ios/                             @hackathon-by-hgs/mobile
+/.github/                                @hackathon-by-hgs/maintainers

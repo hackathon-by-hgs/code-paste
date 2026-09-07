@@ -1,5 +1,7 @@
 name: Mobile CI
 
+# Belongs to the `mobile` branch only (DEV_GUIDE.md §6). Flutter / Dart, Android + iOS.
+
 on:
   push:
     branches: [mobile]
@@ -36,7 +38,16 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --no-pub
-      - run: flutter test --no-pub
+      - name: Unit & widget tests (with coverage)
+        run: flutter test --no-pub --coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-coverage
+          path: mobile/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
 
   contract-conformance:
     runs-on: ubuntu-latest
@@ -52,6 +63,40 @@ jobs:
           git archive FETCH_HEAD contracts | tar -x -C .contracts
       - name: Report conformance implementation status
         run: echo '::notice::Pinned contracts fetched. Contract vector tests are not implemented yet.'
+
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            mobile
+            android
+            ios
+            clipboard
+            deps
+            deps-dev
+          requireScope: false
 
   build:
     runs-on: ubuntu-latest
@@ -85,6 +130,24 @@ jobs:
           path: mobile/release-apks/
           if-no-files-found: error
           retention-days: 14
+
+  build-ios:
+    # iOS runs on macOS runners, which bill ~10× the minutes. Compile-only (no signing) as a
+    # regression check, and only on push to `mobile` (not on every PR) to keep PRs fast and cheap.
+    # Not a required merge gate.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build iOS (no code signing)
+        run: flutter build ios --release --no-codesign
 
   release:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/mobile'
