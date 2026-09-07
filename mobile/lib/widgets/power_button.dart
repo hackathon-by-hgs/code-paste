@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
 
 class PowerButton extends StatefulWidget {
   final bool isEnabled;
@@ -8,18 +7,19 @@ class PowerButton extends StatefulWidget {
   final double size;
 
   const PowerButton({
-    Key? key,
+    super.key,
     required this.isEnabled,
     required this.isLoading,
     required this.onPressed,
     this.size = 120.0,
-  }) : super(key: key);
+  });
 
   @override
   State<PowerButton> createState() => _PowerButtonState();
 }
 
-class _PowerButtonState extends State<PowerButton> with SingleTickerProviderStateMixin {
+class _PowerButtonState extends State<PowerButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
@@ -80,7 +80,9 @@ class _PowerButtonState extends State<PowerButton> with SingleTickerProviderStat
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.red.withOpacity(0.3 * _rotationAnimation.value),
+                          color: Colors.red.withValues(
+                            alpha: 0.3 * _rotationAnimation.value,
+                          ),
                           blurRadius: 30,
                           spreadRadius: 10,
                         ),
@@ -98,8 +100,9 @@ class _PowerButtonState extends State<PowerButton> with SingleTickerProviderStat
                 color: widget.isEnabled ? Colors.red : Colors.grey.shade400,
                 boxShadow: [
                   BoxShadow(
-                    color: (widget.isEnabled ? Colors.red : Colors.grey.shade400)
-                        .withOpacity(0.4),
+                    color:
+                        (widget.isEnabled ? Colors.red : Colors.grey.shade400)
+                            .withValues(alpha: 0.4),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -117,13 +120,17 @@ class _PowerButtonState extends State<PowerButton> with SingleTickerProviderStat
                             height: widget.size * 0.6,
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                widget.isEnabled ? Colors.white : Colors.grey.shade600,
+                                widget.isEnabled
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
                               ),
                               strokeWidth: 3,
                             ),
                           )
                         : Icon(
-                            widget.isEnabled ? Icons.check : Icons.power_settings_new,
+                            widget.isEnabled
+                                ? Icons.check
+                                : Icons.power_settings_new,
                             size: widget.size * 0.5,
                             color: Colors.white,
                           ),

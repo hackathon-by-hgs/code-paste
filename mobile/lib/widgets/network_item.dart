@@ -8,11 +8,11 @@ class NetworkItem extends StatelessWidget {
   final bool isLoading;
 
   const NetworkItem({
-    Key? key,
+    super.key,
     required this.network,
     required this.onTap,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +25,15 @@ class NetworkItem extends StatelessWidget {
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: network.isCurrentlyConnected ? AppTheme.primaryColor : AppTheme.borderColor,
+            color: network.isCurrentlyConnected
+                ? AppTheme.primaryColor
+                : AppTheme.borderColor,
             width: network.isCurrentlyConnected ? 2 : 1,
           ),
           boxShadow: [
             if (network.isCurrentlyConnected)
               BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.2),
+                color: AppTheme.primaryColor.withValues(alpha: 0.2),
                 blurRadius: 8,
                 spreadRadius: 2,
               ),
@@ -70,7 +72,8 @@ class NetworkItem extends StatelessWidget {
                           children: [
                             Text(
                               network.name,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textPrimary,
                                   ),
@@ -78,8 +81,11 @@ class NetworkItem extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              network.isCurrentlyConnected ? 'Connected' : 'Available',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              network.isCurrentlyConnected
+                                  ? 'Connected'
+                                  : 'Available',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
                                     color: network.isCurrentlyConnected
                                         ? AppTheme.secondaryColor
                                         : AppTheme.textSecondary,
@@ -101,8 +107,8 @@ class NetworkItem extends StatelessWidget {
                       Text(
                         network.getSignalLabel(),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -118,18 +124,16 @@ class NetworkItem extends StatelessWidget {
                   color: AppTheme.secondaryColor,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 20),
               )
             else if (isLoading)
               SizedBox(
                 width: 36,
                 height: 36,
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.primaryColor,
+                  ),
                   strokeWidth: 2,
                 ),
               )
@@ -138,7 +142,7 @@ class NetworkItem extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

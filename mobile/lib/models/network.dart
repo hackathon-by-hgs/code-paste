@@ -1,15 +1,6 @@
-enum ConnectionStatus {
-  connected,
-  available,
-  unavailable,
-}
+enum ConnectionStatus { connected, available, unavailable }
 
-enum SignalStrength {
-  poor,
-  fair,
-  good,
-  excellent,
-}
+enum SignalStrength { poor, fair, good, excellent }
 
 class Network {
   final String id;

@@ -13,15 +13,15 @@ class ProtocolPolicy {
     return ProtocolPolicy(
       protocolVersion: json['protocolVersion'] as int? ?? 1,
       payloadLimits: Map<String, int>.from(
-        (json['limits'] as Map<String, dynamic>?)?.cast<String, int>() ?? {
-          'text/plain': 1048576, // 1 MiB
-          'image/png': 10485760, // 10 MiB
-          'image/jpeg': 10485760, // 10 MiB
-        },
+        (json['limits'] as Map<String, dynamic>?)?.cast<String, int>() ??
+            {
+              'text/plain': 1048576, // 1 MiB
+              'image/png': 10485760, // 10 MiB
+              'image/jpeg': 10485760, // 10 MiB
+            },
       ),
       supportedContentTypes: List<String>.from(
-        (json['supportedContentTypes'] as List?)
-                ?.cast<String>() ??
+        (json['supportedContentTypes'] as List?)?.cast<String>() ??
             ['text/plain', 'image/png', 'image/jpeg'],
       ),
     );

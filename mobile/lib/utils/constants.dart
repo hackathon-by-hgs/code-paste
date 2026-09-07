@@ -1,7 +1,8 @@
 class AppConstants {
   // Error messages
   static const String errorGeneric = 'Something went wrong. Please try again.';
-  static const String errorNetwork = 'Network error. Please check your connection.';
+  static const String errorNetwork =
+      'Network error. Please check your connection.';
   static const String errorTimeout = 'Request timeout. Please try again.';
 
   // Success messages

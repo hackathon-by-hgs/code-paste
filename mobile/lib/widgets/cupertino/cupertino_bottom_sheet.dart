@@ -7,11 +7,11 @@ class CupertinoBottomSheet extends StatefulWidget {
   final bool isLoading;
 
   const CupertinoBottomSheet({
-    Key? key,
+    super.key,
     required this.networks,
     required this.onNetworkSelected,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   State<CupertinoBottomSheet> createState() => _CupertinoBottomSheetState();
@@ -51,7 +51,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
             ),
             boxShadow: [
               BoxShadow(
-                color: CupertinoColors.black.withOpacity(0.15),
+                color: CupertinoColors.black.withValues(alpha: 0.15),
                 blurRadius: 20,
                 offset: const Offset(0, -8),
               ),

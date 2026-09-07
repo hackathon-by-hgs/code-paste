@@ -69,9 +69,8 @@ class ClipboardEvent {
       senderDeviceId: json['senderDeviceId'] as String,
       sessionId: json['sessionId'] as String?,
       sequence: json['sequence'] as int,
-      contentType: ContentType.fromMimeType(
-            json['contentType'] as String,
-          ) ??
+      contentType:
+          ContentType.fromMimeType(json['contentType'] as String) ??
           ContentType.textPlain,
       size: json['size'] as int,
       hash: json['hash'] as String,
@@ -135,11 +134,8 @@ class ClipboardSnapshot {
   final String? content;
   final DateTime capturedAt;
 
-  ClipboardSnapshot({
-    this.contentType,
-    this.content,
-    DateTime? capturedAt,
-  }) : capturedAt = capturedAt ?? DateTime.now();
+  ClipboardSnapshot({this.contentType, this.content, DateTime? capturedAt})
+    : capturedAt = capturedAt ?? DateTime.now();
 
   bool hasContent() => content != null && content!.isNotEmpty;
 

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import '../models/peer.dart';
 import '../models/network.dart';
 import 'api_client.dart';
@@ -18,7 +17,7 @@ class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
   PeerRoster? _cachedRoster;
 
   PeerDiscoveryServiceImpl({required ApiClient apiClient})
-      : _apiClient = apiClient;
+    : _apiClient = apiClient;
 
   @override
   Future<PeerRoster> fetchPeerRoster() async {

@@ -2,11 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
-import '../../services/auth_service.dart';
 import '../../services/api_client.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -195,7 +194,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: CupertinoColors.destructiveRed.withOpacity(0.1),
+                      color: CupertinoColors.destructiveRed.withValues(
+                        alpha: 0.1,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: CupertinoColors.destructiveRed),
                     ),

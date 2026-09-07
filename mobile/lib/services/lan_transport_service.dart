@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -18,7 +19,6 @@ abstract class LanTransportService {
 
 class LanTransportServiceImpl implements LanTransportService {
   final String _deviceId;
-  final String _privateKeyPem;
   final Map<String, Socket> _peerSockets = {};
   final Map<String, StreamSubscription> _peerListeners = {};
   final Map<String, Uint8List> _peerBuffers = {}; // Buffer for partial messages
@@ -34,8 +34,7 @@ class LanTransportServiceImpl implements LanTransportService {
   LanTransportServiceImpl({
     required String deviceId,
     required String privateKeyPem,
-  })  : _deviceId = deviceId,
-        _privateKeyPem = privateKeyPem {
+  }) : _deviceId = deviceId {
     _receivedEventsController = StreamController<ClipboardEvent>.broadcast();
   }
 
@@ -54,14 +53,15 @@ class LanTransportServiceImpl implements LanTransportService {
       }
 
       // Connect with timeout
-      final socket = await Socket.connect(
-        peerAddress,
-        defaultPort,
-        timeout: Duration(seconds: connectionTimeoutSeconds),
-      ).timeout(
-        Duration(seconds: connectionTimeoutSeconds),
-        onTimeout: () => throw SocketException('Connection timeout'),
-      );
+      final socket =
+          await Socket.connect(
+            peerAddress,
+            defaultPort,
+            timeout: Duration(seconds: connectionTimeoutSeconds),
+          ).timeout(
+            Duration(seconds: connectionTimeoutSeconds),
+            onTimeout: () => throw SocketException('Connection timeout'),
+          );
 
       _peerSockets[peer.deviceId] = socket;
 
@@ -71,19 +71,15 @@ class LanTransportServiceImpl implements LanTransportService {
       // Send handshake
       await _sendHandshake(socket, peer);
 
-      print('Connected to peer: ${peer.deviceId}');
+      developer.log('Connected to peer: ${peer.deviceId}');
     } catch (e) {
-      print('Failed to connect to peer ${peer.deviceId}: $e');
+      developer.log('Failed to connect to peer ${peer.deviceId}: $e');
       await disconnect(peer.deviceId);
       rethrow;
     }
   }
 
-  void _setupPeerListener(
-    String peerId,
-    Socket socket,
-    String peerPublicKey,
-  ) {
+  void _setupPeerListener(String peerId, Socket socket, String peerPublicKey) {
     final listener = socket.listen(
       (data) => _onPeerData(peerId, data, peerPublicKey),
       onError: (error) => _onPeerError(peerId, error),
@@ -113,7 +109,10 @@ class LanTransportServiceImpl implements LanTransportService {
         }
 
         // Extract message data
-        final messageData = buf.sublist(messageHeaderSize, messageHeaderSize + length);
+        final messageData = buf.sublist(
+          messageHeaderSize,
+          messageHeaderSize + length,
+        );
         final json = utf8.decode(messageData);
         final payload = jsonDecode(json) as Map<String, dynamic>;
 
@@ -123,27 +122,31 @@ class LanTransportServiceImpl implements LanTransportService {
 
         // Validate sender
         if (event.senderDeviceId != peerId) {
-          print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
+          developer.log(
+            'Event sender mismatch: expected $peerId, got ${event.senderDeviceId}',
+          );
         } else {
           _receivedEventsController.add(event);
         }
 
         // Remove processed message from buffer
-        _peerBuffers[peerId] = Uint8List.fromList(buf.sublist(messageHeaderSize + length));
+        _peerBuffers[peerId] = Uint8List.fromList(
+          buf.sublist(messageHeaderSize + length),
+        );
       }
     } catch (e) {
-      print('Error processing peer data from $peerId: $e');
+      developer.log('Error processing peer data from $peerId: $e');
       disconnect(peerId);
     }
   }
 
   void _onPeerError(String peerId, dynamic error) {
-    print('Peer $peerId socket error: $error');
+    developer.log('Peer $peerId socket error: $error');
     disconnect(peerId);
   }
 
   void _onPeerDisconnected(String peerId) {
-    print('Peer disconnected: $peerId');
+    developer.log('Peer disconnected: $peerId');
     disconnect(peerId);
   }
 
@@ -162,18 +165,21 @@ class LanTransportServiceImpl implements LanTransportService {
       final messageData = utf8.encode(json);
 
       // Prepare length-prefixed message
-      final lengthBytes = ByteData(messageHeaderSize)..setUint32(0, messageData.length);
+      final lengthBytes = ByteData(messageHeaderSize)
+        ..setUint32(0, messageData.length);
       final framedMessage = Uint8List.fromList([
         ...lengthBytes.buffer.asUint8List(),
-        ...messageData
+        ...messageData,
       ]);
 
       socket.add(framedMessage);
       await socket.flush();
 
-      print('Sent event ${event.eventId} to $peerId (length=${messageData.length})');
+      developer.log(
+        'Sent event ${event.eventId} to $peerId (length=${messageData.length})',
+      );
     } catch (e) {
-      print('Failed to send event to $peerId: $e');
+      developer.log('Failed to send event to $peerId: $e');
       await disconnect(peerId);
       rethrow;
     }
@@ -192,18 +198,19 @@ class LanTransportServiceImpl implements LanTransportService {
       final messageData = utf8.encode(json);
 
       // Prepare length-prefixed message
-      final lengthBytes = ByteData(messageHeaderSize)..setUint32(0, messageData.length);
+      final lengthBytes = ByteData(messageHeaderSize)
+        ..setUint32(0, messageData.length);
       final framedMessage = Uint8List.fromList([
         ...lengthBytes.buffer.asUint8List(),
-        ...messageData
+        ...messageData,
       ]);
 
       socket.add(framedMessage);
       await socket.flush();
 
-      print('Handshake sent to ${peer.deviceId}');
+      developer.log('Handshake sent to ${peer.deviceId}');
     } catch (e) {
-      print('Handshake failed: $e');
+      developer.log('Handshake failed: $e');
       rethrow;
     }
   }
@@ -224,9 +231,9 @@ class LanTransportServiceImpl implements LanTransportService {
       _peerBuffers.remove(peerId);
       await socket?.close();
 
-      print('Disconnected from peer: $peerId');
+      developer.log('Disconnected from peer: $peerId');
     } catch (e) {
-      print('Error disconnecting from $peerId: $e');
+      developer.log('Error disconnecting from $peerId: $e');
     }
   }
 
@@ -238,7 +245,7 @@ class LanTransportServiceImpl implements LanTransportService {
     }
 
     await _receivedEventsController.close();
-    print('LAN transport shutdown complete');
+    developer.log('LAN transport shutdown complete');
   }
 
   /// Resolve peer IP from device ID (mDNS or peer registry lookup)
@@ -246,7 +253,7 @@ class LanTransportServiceImpl implements LanTransportService {
   String? _resolvePeerAddress(Peer peer) {
     // Placeholder: In production, use mDNS to resolve <deviceId>.local
     // For now, would be filled from network discovery
-    print('TODO: Resolve ${peer.deviceId} IP address via mDNS');
+    developer.log('TODO: Resolve ${peer.deviceId} IP address via mDNS');
     return null; // Require external resolution for now
   }
 }
@@ -254,10 +261,7 @@ class LanTransportServiceImpl implements LanTransportService {
 /// Encryption utilities for LAN transport
 class TransportEncryption {
   /// Encrypt payload with recipient's public key (RSA)
-  static String encryptPayload(
-    String payload,
-    String recipientPublicKeyPem,
-  ) {
+  static String encryptPayload(String payload, String recipientPublicKeyPem) {
     // TODO: Implement RSA encryption
     // Use pointycastle RSAPublicKey from PEM
     return payload; // Mock: return plaintext
@@ -274,10 +278,7 @@ class TransportEncryption {
   }
 
   /// Compute HMAC signature for integrity check
-  static String signPayload(
-    String payload,
-    String devicePrivateKeyPem,
-  ) {
+  static String signPayload(String payload, String devicePrivateKeyPem) {
     // TODO: Implement Ed25519 signature
     // For MVP, use HMAC-SHA256
     final bytes = utf8.encode(payload);

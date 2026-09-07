@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:async';
 import '../models/clipboard_event.dart';
 import '../models/peer.dart';
@@ -28,10 +29,9 @@ class TransportServiceImpl implements TransportService {
   TransportServiceImpl({
     required LanTransportService clientTransport,
     required LanServerService serverService,
-  })  : _clientTransport = clientTransport,
-        _serverService = serverService {
-    _receivedEventsController =
-        StreamController<ClipboardEvent>.broadcast();
+  }) : _clientTransport = clientTransport,
+       _serverService = serverService {
+    _receivedEventsController = StreamController<ClipboardEvent>.broadcast();
     _setupEventForwarding();
   }
 
@@ -39,13 +39,13 @@ class TransportServiceImpl implements TransportService {
     // Forward events from client transport (responses from peers)
     _clientTransport.receivedEvents.listen(
       (event) => _receivedEventsController.add(event),
-      onError: (e) => print('Client transport error: $e'),
+      onError: (e) => developer.log('Client transport error: $e'),
     );
 
     // Forward events from server (incoming from peers)
     _serverService.incomingEvents.listen(
       (event) => _receivedEventsController.add(event),
-      onError: (e) => print('Server service error: $e'),
+      onError: (e) => developer.log('Server service error: $e'),
     );
   }
 
@@ -69,15 +69,15 @@ class TransportServiceImpl implements TransportService {
         try {
           await _clientTransport.connectToPeer(peer);
         } catch (e) {
-          print('Failed to connect to peer ${peer.deviceId}: $e');
+          developer.log('Failed to connect to peer ${peer.deviceId}: $e');
           // Continue with other peers even if one fails
         }
       }
 
       _isRunning = true;
-      print('Transport service started');
+      developer.log('Transport service started');
     } catch (e) {
-      print('Failed to start transport service: $e');
+      developer.log('Failed to start transport service: $e');
       await _serverService.stop();
       rethrow;
     }
@@ -91,7 +91,7 @@ class TransportServiceImpl implements TransportService {
     await _serverService.stop();
     await _clientTransport.shutdown();
     await _receivedEventsController.close();
-    print('Transport service stopped');
+    developer.log('Transport service stopped');
   }
 
   @override

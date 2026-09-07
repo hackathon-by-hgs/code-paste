@@ -8,13 +8,13 @@ class CupertinoPowerButton extends StatelessWidget {
   final double size;
 
   const CupertinoPowerButton({
-    Key? key,
+    super.key,
     required this.isActive,
     required this.isLoading,
     required this.onPressed,
     required this.animationController,
     this.size = 100,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,10 @@ class CupertinoPowerButton extends StatelessWidget {
       onTap: isLoading ? null : onPressed,
       child: ScaleTransition(
         scale: Tween<double>(begin: 1.0, end: 0.95).animate(
-          CurvedAnimation(parent: animationController, curve: Curves.elasticOut),
+          CurvedAnimation(
+            parent: animationController,
+            curve: Curves.elasticOut,
+          ),
         ),
         child: Container(
           width: size,
@@ -34,10 +37,11 @@ class CupertinoPowerButton extends StatelessWidget {
                 : CupertinoColors.systemGrey5.resolveFrom(context),
             boxShadow: [
               BoxShadow(
-                color: (isActive
-                        ? CupertinoColors.destructiveRed
-                        : CupertinoColors.systemGrey5.resolveFrom(context))
-                    .withOpacity(0.3),
+                color:
+                    (isActive
+                            ? CupertinoColors.destructiveRed
+                            : CupertinoColors.systemGrey5.resolveFrom(context))
+                        .withValues(alpha: 0.3),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),

@@ -1,5 +1,5 @@
+import 'dart:developer' as developer;
 import 'dart:async';
-import 'dart:convert';
 import '../models/clipboard_event.dart';
 import 'clipboard_service.dart';
 import 'peer_discovery_service.dart';
@@ -37,32 +37,29 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
     required PeerDiscoveryService peerDiscoveryService,
     required TransportService transport,
     required String deviceId,
-  })  : _clipboardService = clipboardService,
-        _peerDiscoveryService = peerDiscoveryService,
-        _transport = transport,
-        _deviceId = deviceId {
+  }) : _clipboardService = clipboardService,
+       _peerDiscoveryService = peerDiscoveryService,
+       _transport = transport,
+       _deviceId = deviceId {
     _receivedEventsController = StreamController<ClipboardEvent>.broadcast();
     _setupReceivedEventsForwarding();
   }
 
   void _setupReceivedEventsForwarding() {
-    _transport.receivedEvents.listen(
-      (event) async {
-        try {
-          // Write received event to clipboard
-          await _clipboardService.writeClipboard(
-            event.payload,
-            event.contentType,
-          );
-          print('Wrote received event to clipboard: ${event.eventId}');
-        } catch (e) {
-          print('Failed to write clipboard: $e');
-        }
+    _transport.receivedEvents.listen((event) async {
+      try {
+        // Write received event to clipboard
+        await _clipboardService.writeClipboard(
+          event.payload,
+          event.contentType,
+        );
+        developer.log('Wrote received event to clipboard: ${event.eventId}');
+      } catch (e) {
+        developer.log('Failed to write clipboard: $e');
+      }
 
-        _receivedEventsController.add(event);
-      },
-      onError: (e) => print('Error receiving event: $e'),
-    );
+      _receivedEventsController.add(event);
+    }, onError: (e) => developer.log('Error receiving event: $e'));
   }
 
   @override
@@ -70,11 +67,11 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
     if (_isRunning) return;
 
     _isRunning = true;
-    print('Clipboard sync started');
+    developer.log('Clipboard sync started');
 
     // Verify roster is valid
     if (!_peerDiscoveryService.isRosterValid()) {
-      print('Warning: Peer roster not valid at start');
+      developer.log('Warning: Peer roster not valid at start');
     }
 
     // Get available peers and start transport
@@ -82,18 +79,18 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
     if (peers.isNotEmpty) {
       try {
         await _transport.start(peers);
-        print('Transport started with ${peers.length} peers');
+        developer.log('Transport started with ${peers.length} peers');
       } catch (e) {
-        print('Failed to start transport: $e');
+        developer.log('Failed to start transport: $e');
       }
     } else {
-      print('No peers available to connect');
+      developer.log('No peers available to connect');
     }
 
     // Listen to clipboard changes
     _clipboardSubscription = _clipboardService.clipboardStream.listen(
       (snapshot) => _onClipboardChanged(snapshot),
-      onError: (e) => print('Clipboard monitoring error: $e'),
+      onError: (e) => developer.log('Clipboard monitoring error: $e'),
     );
   }
 
@@ -102,7 +99,7 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
     _isRunning = false;
     await _clipboardSubscription?.cancel();
     await _transport.stop();
-    print('Clipboard sync stopped');
+    developer.log('Clipboard sync stopped');
   }
 
   Future<void> _onClipboardChanged(ClipboardSnapshot snapshot) async {
@@ -129,18 +126,18 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   @override
   Future<void> sendClipboardEvent(ClipboardEvent event) async {
     if (!_transport.isRunning) {
-      print('Transport not running, cannot send event');
+      developer.log('Transport not running, cannot send event');
       return;
     }
 
     if (!_peerDiscoveryService.isRosterValid()) {
-      print('Peer roster not valid, cannot send event');
+      developer.log('Peer roster not valid, cannot send event');
       return;
     }
 
     final peers = _peerDiscoveryService.getAvailablePeers();
     if (peers.isEmpty) {
-      print('No available peers to send clipboard event');
+      developer.log('No available peers to send clipboard event');
       return;
     }
 
@@ -150,17 +147,19 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
         await _transport.sendEvent(event, peer.deviceId);
         sentCount++;
       } catch (e) {
-        print('Failed to send event to ${peer.deviceId}: $e');
+        developer.log('Failed to send event to ${peer.deviceId}: $e');
       }
     }
 
-    print('Sent event ${event.eventId} to $sentCount/${peers.length} peers');
+    developer.log(
+      'Sent event ${event.eventId} to $sentCount/${peers.length} peers',
+    );
   }
 
   @override
   Future<void> dispose() async {
     await stop();
     await _receivedEventsController.close();
-    print('Clipboard sync service disposed');
+    developer.log('Clipboard sync service disposed');
   }
 }

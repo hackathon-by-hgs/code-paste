@@ -6,11 +6,7 @@ class ApiException implements Exception {
   final int? statusCode;
   final dynamic originalError;
 
-  ApiException({
-    required this.message,
-    this.statusCode,
-    this.originalError,
-  });
+  ApiException({required this.message, this.statusCode, this.originalError});
 
   @override
   String toString() => 'ApiException: $message (HTTP $statusCode)';
@@ -23,10 +19,8 @@ class ApiClient {
 
   static const String _clientHeader = 'CodePaste/1.0.0';
 
-  ApiClient({
-    required this.baseUrl,
-    http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  ApiClient({required this.baseUrl, http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
   void setBearerToken(String token) {
     _bearerToken = token;
@@ -49,28 +43,19 @@ class ApiClient {
     return headers;
   }
 
-  Future<Map<String, dynamic>> get(
-    String path, {
-    bool withAuth = true,
-  }) async {
+  Future<Map<String, dynamic>> get(String path, {bool withAuth = true}) async {
     try {
       final url = Uri.parse('$baseUrl$path');
-      final response = await _httpClient.get(
-        url,
-        headers: _getHeaders(withAuth: withAuth),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw ApiException(
-          message: 'Request timeout',
-        ),
-      );
+      final response = await _httpClient
+          .get(url, headers: _getHeaders(withAuth: withAuth))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw ApiException(message: 'Request timeout'),
+          );
 
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException(
-        message: 'GET $path failed: $e',
-        originalError: e,
-      );
+      throw ApiException(message: 'GET $path failed: $e', originalError: e);
     }
   }
 
@@ -81,23 +66,20 @@ class ApiClient {
   }) async {
     try {
       final url = Uri.parse('$baseUrl$path');
-      final response = await _httpClient.post(
-        url,
-        headers: _getHeaders(withAuth: withAuth),
-        body: body != null ? jsonEncode(body) : null,
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw ApiException(
-          message: 'Request timeout',
-        ),
-      );
+      final response = await _httpClient
+          .post(
+            url,
+            headers: _getHeaders(withAuth: withAuth),
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw ApiException(message: 'Request timeout'),
+          );
 
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException(
-        message: 'POST $path failed: $e',
-        originalError: e,
-      );
+      throw ApiException(message: 'POST $path failed: $e', originalError: e);
     }
   }
 
@@ -108,23 +90,20 @@ class ApiClient {
   }) async {
     try {
       final url = Uri.parse('$baseUrl$path');
-      final response = await _httpClient.patch(
-        url,
-        headers: _getHeaders(withAuth: withAuth),
-        body: jsonEncode(body),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw ApiException(
-          message: 'Request timeout',
-        ),
-      );
+      final response = await _httpClient
+          .patch(
+            url,
+            headers: _getHeaders(withAuth: withAuth),
+            body: jsonEncode(body),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw ApiException(message: 'Request timeout'),
+          );
 
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException(
-        message: 'PATCH $path failed: $e',
-        originalError: e,
-      );
+      throw ApiException(message: 'PATCH $path failed: $e', originalError: e);
     }
   }
 
@@ -134,15 +113,12 @@ class ApiClient {
   }) async {
     try {
       final url = Uri.parse('$baseUrl$path');
-      final response = await _httpClient.delete(
-        url,
-        headers: _getHeaders(withAuth: withAuth),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw ApiException(
-          message: 'Request timeout',
-        ),
-      );
+      final response = await _httpClient
+          .delete(url, headers: _getHeaders(withAuth: withAuth))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw ApiException(message: 'Request timeout'),
+          );
 
       if (response.statusCode == 204) {
         return {}; // No content
@@ -150,10 +126,7 @@ class ApiClient {
 
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException(
-        message: 'DELETE $path failed: $e',
-        originalError: e,
-      );
+      throw ApiException(message: 'DELETE $path failed: $e', originalError: e);
     }
   }
 
@@ -162,7 +135,7 @@ class ApiClient {
       final body = response.body.isEmpty
           ? <String, dynamic>{}
           : (jsonDecode(response.body) as Map<dynamic, dynamic>)
-              .cast<String, dynamic>();
+                .cast<String, dynamic>();
 
       switch (response.statusCode) {
         case 200:
@@ -197,7 +170,8 @@ class ApiClient {
           );
         default:
           throw ApiException(
-            message: 'HTTP ${response.statusCode}: ${body['error'] ?? 'Unknown error'}',
+            message:
+                'HTTP ${response.statusCode}: ${body['error'] ?? 'Unknown error'}',
             statusCode: response.statusCode,
           );
       }

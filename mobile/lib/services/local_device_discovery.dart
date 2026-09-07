@@ -13,7 +13,6 @@ abstract class LocalDeviceDiscovery {
 }
 
 class LocalDeviceDiscoveryImpl implements LocalDeviceDiscovery {
-  static const String _serviceName = '_copypaste._tcp.local';
   final _discoveryStreamController = StreamController<Network>.broadcast();
   Timer? _scanTimer;
   final List<Network> _discoveredDevices = [];
@@ -88,6 +87,7 @@ class LocalDeviceDiscoveryImpl implements LocalDeviceDiscovery {
     return null;
   }
 
+  @override
   void dispose() {
     _scanTimer?.cancel();
     _discoveryStreamController.close();

@@ -29,11 +29,31 @@ class AppTheme {
         surface: surfaceColor,
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
-        displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary),
-        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
         bodyLarge: TextStyle(fontSize: 16, color: textPrimary),
         bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
         labelSmall: TextStyle(fontSize: 12, color: textSecondary),

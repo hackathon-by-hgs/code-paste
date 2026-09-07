@@ -7,11 +7,11 @@ class CupertinoNetworkList extends StatelessWidget {
   final bool isLoading;
 
   const CupertinoNetworkList({
-    Key? key,
+    super.key,
     required this.networks,
     required this.onNetworkSelected,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,17 +29,17 @@ class CupertinoNetworkList extends StatelessWidget {
             Text(
               'No Networks Found',
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Searching for devices',
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey.resolveFrom(context),
-                  ),
+                fontSize: 13,
+                color: CupertinoColors.systemGrey.resolveFrom(context),
+              ),
             ),
           ],
         ),
@@ -56,7 +56,7 @@ class CupertinoNetworkList extends StatelessWidget {
             trailing: _buildTrailing(network),
             onTap: isLoading ? null : () => onNetworkSelected(network),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -71,10 +71,10 @@ class CupertinoNetworkList extends StatelessWidget {
             child: Text(
               'Connected',
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 13,
-                    color: CupertinoColors.systemGreen,
-                    fontWeight: FontWeight.w500,
-                  ),
+                fontSize: 13,
+                color: CupertinoColors.systemGreen,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ..._buildSignalBars(network.getSignalBars()),
@@ -82,9 +82,9 @@ class CupertinoNetworkList extends StatelessWidget {
         Text(
           network.getSignalLabel(),
           style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                fontSize: 12,
-                color: CupertinoColors.systemGrey.resolveFrom(context),
-              ),
+            fontSize: 12,
+            color: CupertinoColors.systemGrey.resolveFrom(context),
+          ),
         ),
       ],
     );

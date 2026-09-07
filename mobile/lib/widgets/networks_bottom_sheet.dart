@@ -10,12 +10,12 @@ class NetworksBottomSheet extends StatefulWidget {
   final bool isFeatureEnabled;
 
   const NetworksBottomSheet({
-    Key? key,
+    super.key,
     required this.networks,
     required this.onNetworkSelected,
     this.isLoading = false,
     this.isFeatureEnabled = false,
-  }) : super(key: key);
+  });
 
   @override
   State<NetworksBottomSheet> createState() => _NetworksBottomSheetState();
@@ -58,18 +58,17 @@ class _NetworksBottomSheetState extends State<NetworksBottomSheet> {
               topRight: Radius.circular(20),
             ),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
+              BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5),
             ],
           ),
           child: Column(
             children: [
               // Handle and header
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 16,
+                ),
                 child: Column(
                   children: [
                     // Drag handle
@@ -88,7 +87,8 @@ class _NetworksBottomSheetState extends State<NetworksBottomSheet> {
                       children: [
                         Text(
                           'Available Networks',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
                               ),
@@ -123,10 +123,7 @@ class _NetworksBottomSheetState extends State<NetworksBottomSheet> {
                 ),
               ),
               // Divider
-              Divider(
-                height: 1,
-                color: AppTheme.borderColor,
-              ),
+              Divider(height: 1, color: AppTheme.borderColor),
               // Networks list
               Expanded(
                 child: widget.networks.isEmpty
@@ -160,20 +157,20 @@ class _NetworksBottomSheetState extends State<NetworksBottomSheet> {
           Icon(
             Icons.wifi_off,
             size: 48,
-            color: AppTheme.textSecondary.withOpacity(0.5),
+            color: AppTheme.textSecondary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
             'No networks found',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             'Pull up to refresh',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary.withOpacity(0.7),
+              color: AppTheme.textSecondary.withValues(alpha: 0.7),
             ),
           ),
         ],

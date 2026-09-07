@@ -5,7 +5,7 @@ import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -156,7 +156,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: CupertinoColors.destructiveRed.withOpacity(0.1),
+                      color: CupertinoColors.destructiveRed.withValues(
+                        alpha: 0.1,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: CupertinoColors.destructiveRed),
                     ),

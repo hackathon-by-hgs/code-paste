@@ -55,10 +55,7 @@ class ClipboardServiceImpl implements ClipboardService {
         contentType = ContentType.fromMimeType(contentTypeStr);
       }
 
-      return ClipboardSnapshot(
-        contentType: contentType,
-        content: content,
-      );
+      return ClipboardSnapshot(contentType: contentType, content: content);
     } on PlatformException catch (e) {
       throw Exception('Failed to read clipboard: ${e.message}');
     }

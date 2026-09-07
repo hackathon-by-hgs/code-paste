@@ -1,6 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/export.dart';
-import 'package:pointycastle/random/fortuna_random.dart';
 import 'dart:convert';
 import 'dart:math' show Random;
 import 'dart:typed_data';
@@ -133,8 +132,8 @@ class AuthServiceImpl implements AuthService {
     required String apiBaseUrl,
     FlutterSecureStorage? secureStorage,
     ApiClient? apiClient,
-  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _apiClient = apiClient ?? ApiClient(baseUrl: apiBaseUrl) {
+  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+       _apiClient = apiClient ?? ApiClient(baseUrl: apiBaseUrl) {
     _initAppVersion();
   }
 
@@ -150,14 +149,10 @@ class AuthServiceImpl implements AuthService {
   @override
   Future<TokenPair> login(String email, String password) async {
     try {
-      final response = await _apiClient.post(
-        '/auth/login',
-        {
-          'email': email,
-          'password': password,
-        },
-        withAuth: false,
-      );
+      final response = await _apiClient.post('/auth/login', {
+        'email': email,
+        'password': password,
+      }, withAuth: false);
 
       final tokens = TokenPair.fromJson(response);
       _apiClient.setBearerToken(tokens.accessToken);
@@ -178,13 +173,9 @@ class AuthServiceImpl implements AuthService {
         throw Exception('No refresh token available');
       }
 
-      final response = await _apiClient.post(
-        '/auth/refresh',
-        {
-          'refreshToken': refreshToken,
-        },
-        withAuth: false,
-      );
+      final response = await _apiClient.post('/auth/refresh', {
+        'refreshToken': refreshToken,
+      }, withAuth: false);
 
       final newTokens = TokenPair.fromJson(response);
       _apiClient.setBearerToken(newTokens.accessToken);
@@ -214,13 +205,9 @@ class AuthServiceImpl implements AuthService {
     try {
       final tokens = await getStoredTokens();
       if (tokens != null) {
-        await _apiClient.post(
-          '/auth/logout',
-          {
-            'refreshToken': tokens.refreshToken,
-          },
-          withAuth: false,
-        );
+        await _apiClient.post('/auth/logout', {
+          'refreshToken': tokens.refreshToken,
+        }, withAuth: false);
       }
     } catch (e) {
       // Logout fails gracefully, still clear locally
@@ -273,25 +260,23 @@ class AuthServiceImpl implements AuthService {
       final privateKeyPem = _encodePrivateKey(keyPair.privateKey);
 
       // Calculate key fingerprint (SHA256 hex)
-      final keyFingerprint = sha256.convert(utf8.encode(publicKeyPem)).toString();
+      final keyFingerprint = sha256
+          .convert(utf8.encode(publicKeyPem))
+          .toString();
 
       final platform = Platform.isAndroid ? 'android' : 'ios';
       final appVersion = _appVersion ?? '1.0.0';
       const protocolVersion = '1';
 
-      final response = await _apiClient.post(
-        '/devices',
-        {
-          'pairingCode': pairingCode,
-          'deviceName': deviceName,
-          'platform': platform,
-          'appVersion': appVersion,
-          'protocolVersion': protocolVersion,
-          'publicKey': publicKeyPem,
-          'capabilities': ['text/plain', 'image/png', 'image/jpeg'],
-        },
-        withAuth: false,
-      );
+      final response = await _apiClient.post('/devices', {
+        'pairingCode': pairingCode,
+        'deviceName': deviceName,
+        'platform': platform,
+        'appVersion': appVersion,
+        'protocolVersion': protocolVersion,
+        'publicKey': publicKeyPem,
+        'capabilities': ['text/plain', 'image/png', 'image/jpeg'],
+      }, withAuth: false);
 
       final credentials = DeviceCredentials(
         deviceId: response['deviceId'] as String,

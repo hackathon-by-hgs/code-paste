@@ -3,14 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../models/app_state.dart';
-import '../../models/network.dart';
 import '../../providers/home_provider.dart';
 import '../../widgets/cupertino/cupertino_power_button.dart';
-import '../../widgets/cupertino/cupertino_network_list.dart';
 import '../../widgets/cupertino/cupertino_bottom_sheet.dart';
 
 class HomeScreenCupertino extends StatefulWidget {
-  const HomeScreenCupertino({Key? key}) : super(key: key);
+  const HomeScreenCupertino({super.key});
 
   @override
   State<HomeScreenCupertino> createState() => _HomeScreenCupertinoState();
@@ -116,9 +114,9 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
               ? 'Your clipboard is syncing'
               : 'Tap to enable clipboard sync',
           style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                color: CupertinoColors.secondaryLabel.resolveFrom(context),
-                fontSize: 15,
-              ),
+            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+            fontSize: 15,
+          ),
         ),
         const SizedBox(height: 60),
         // Power button
@@ -156,9 +154,7 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
                   children: [
                     Text(
                       error.message,
-                      style: CupertinoTheme.of(context)
-                          .textTheme
-                          .textStyle
+                      style: CupertinoTheme.of(context).textTheme.textStyle
                           .copyWith(
                             color: CupertinoColors.white,
                             fontWeight: FontWeight.w600,
@@ -169,12 +165,13 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
                       const SizedBox(height: 4),
                       Text(
                         error.details!,
-                        style:
-                            CupertinoTheme.of(context).textTheme.textStyle
-                                .copyWith(
-                          color: CupertinoColors.white.withOpacity(0.8),
-                          fontSize: 13,
-                        ),
+                        style: CupertinoTheme.of(context).textTheme.textStyle
+                            .copyWith(
+                              color: CupertinoColors.white.withValues(
+                                alpha: 0.8,
+                              ),
+                              fontSize: 13,
+                            ),
                       ),
                     ],
                   ],
@@ -188,7 +185,7 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
                 },
                 child: Icon(
                   CupertinoIcons.xmark_circle_fill,
-                  color: CupertinoColors.white.withOpacity(0.7),
+                  color: CupertinoColors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -198,7 +195,7 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
             SizedBox(
               width: double.infinity,
               child: CupertinoButton(
-                color: CupertinoColors.white.withOpacity(0.2),
+                color: CupertinoColors.white.withValues(alpha: 0.2),
                 onPressed: () {
                   provider.retryActivation();
                 },
@@ -206,9 +203,9 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
                   'Try Again',
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
-                    color: CupertinoColors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: CupertinoColors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ),
             ),

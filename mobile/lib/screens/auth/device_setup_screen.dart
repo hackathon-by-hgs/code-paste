@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 
 class DeviceSetupScreen extends StatefulWidget {
-  const DeviceSetupScreen({Key? key}) : super(key: key);
+  const DeviceSetupScreen({super.key});
 
   @override
   State<DeviceSetupScreen> createState() => _DeviceSetupScreenState();
@@ -86,65 +86,62 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                   style: CupertinoTheme.of(context)
                       .textTheme
                       .navLargeTitleTextStyle
-                      .copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      .copyWith(fontSize: 28, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Enter the pairing code from the web app to register this device and start syncing.',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    color: CupertinoColors.systemGrey,
-                    height: 1.5,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        fontSize: 14,
+                        color: CupertinoColors.systemGrey,
+                        height: 1.5,
+                      ),
                 ),
                 const SizedBox(height: 40),
                 Text(
                   'Pairing Code',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Get this from: Settings > Add Device in the web app',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 12,
-                    color: CupertinoColors.systemGrey,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        fontSize: 12,
+                        color: CupertinoColors.systemGrey,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _pairingCodeController,
                   placeholder: 'e.g., ABC-DEF-GHI',
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Device Name',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _deviceNameController,
                   placeholder: 'e.g., My iPhone',
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -153,18 +150,19 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: CupertinoColors.destructiveRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: CupertinoColors.destructiveRed,
+                      color: CupertinoColors.destructiveRed.withValues(
+                        alpha: 0.1,
                       ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: CupertinoColors.destructiveRed),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 13,
-                        color: CupertinoColors.destructiveRed,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 13,
+                            color: CupertinoColors.destructiveRed,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -207,11 +205,12 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
                       'Skip for Now',
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.systemGrey,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: CupertinoColors.systemGrey,
+                          ),
                     ),
                   ),
                 ),

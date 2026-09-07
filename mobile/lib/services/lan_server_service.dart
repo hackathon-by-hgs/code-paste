@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -13,14 +14,13 @@ abstract class LanServerService {
 }
 
 class LanServerServiceImpl implements LanServerService {
-  final String _deviceId;
-  final String _privateKeyPem;
   final int _port;
 
   ServerSocket? _serverSocket;
   bool _isRunning = false;
   late final StreamController<ClipboardEvent> _incomingEventsController;
-  final Map<Socket, Uint8List> _socketBuffers = {}; // Buffer for partial messages per socket
+  final Map<Socket, Uint8List> _socketBuffers =
+      {}; // Buffer for partial messages per socket
 
   static const int messageHeaderSize = 4; // 4-byte length prefix
 
@@ -34,11 +34,8 @@ class LanServerServiceImpl implements LanServerService {
     required String deviceId,
     required String privateKeyPem,
     int port = 9001,
-  })  : _deviceId = deviceId,
-        _privateKeyPem = privateKeyPem,
-        _port = port {
-    _incomingEventsController =
-        StreamController<ClipboardEvent>.broadcast();
+  }) : _port = port {
+    _incomingEventsController = StreamController<ClipboardEvent>.broadcast();
   }
 
   @override
@@ -46,18 +43,15 @@ class LanServerServiceImpl implements LanServerService {
     if (_isRunning) return;
 
     try {
-      _serverSocket = await ServerSocket.bind(
-        InternetAddress.anyIPv4,
-        _port,
-      );
+      _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, _port);
 
       _isRunning = true;
-      print('LAN server listening on port $_port');
+      developer.log('LAN server listening on port $_port');
 
       // Accept incoming connections
       _acceptConnections();
     } catch (e) {
-      print('Failed to start LAN server: $e');
+      developer.log('Failed to start LAN server: $e');
       rethrow;
     }
   }
@@ -65,14 +59,16 @@ class LanServerServiceImpl implements LanServerService {
   void _acceptConnections() {
     _serverSocket?.listen(
       (socket) => _handleIncomingConnection(socket),
-      onError: (error) => print('Server socket error: $error'),
-      onDone: () => print('Server socket closed'),
+      onError: (error) => developer.log('Server socket error: $error'),
+      onDone: () => developer.log('Server socket closed'),
     );
   }
 
   Future<void> _handleIncomingConnection(Socket socket) async {
     try {
-      print('Incoming connection from ${socket.remoteAddress.address}:${socket.remotePort}');
+      developer.log(
+        'Incoming connection from ${socket.remoteAddress.address}:${socket.remotePort}',
+      );
 
       String? peerId;
       _socketBuffers[socket] = Uint8List(0);
@@ -85,7 +81,8 @@ class LanServerServiceImpl implements LanServerService {
             _socketBuffers[socket] = Uint8List.fromList([...buffer, ...data]);
 
             // Process complete messages from buffer
-            while ((_socketBuffers[socket] ?? Uint8List(0)).length >= messageHeaderSize) {
+            while ((_socketBuffers[socket] ?? Uint8List(0)).length >=
+                messageHeaderSize) {
               final buf = _socketBuffers[socket]!;
 
               // Read message length (4-byte big-endian)
@@ -98,45 +95,54 @@ class LanServerServiceImpl implements LanServerService {
               }
 
               // Extract message data
-              final messageData = buf.sublist(messageHeaderSize, messageHeaderSize + length);
+              final messageData = buf.sublist(
+                messageHeaderSize,
+                messageHeaderSize + length,
+              );
               final json = utf8.decode(messageData);
               final payload = jsonDecode(json) as Map<String, dynamic>;
 
               // Handle handshake
               if (payload['type'] == 'handshake') {
                 peerId = payload['deviceId'] as String?;
-                print('Handshake received from: $peerId');
+                developer.log('Handshake received from: $peerId');
               } else if (peerId != null) {
                 // Handle clipboard event
                 final event = ClipboardEvent.fromJson(payload);
 
                 // Validate sender
                 if (event.senderDeviceId != peerId) {
-                  print('Event sender mismatch: expected $peerId, got ${event.senderDeviceId}');
+                  developer.log(
+                    'Event sender mismatch: expected $peerId, got ${event.senderDeviceId}',
+                  );
                 } else {
                   // TODO: Decrypt payload using peerId's public key from roster
                   _incomingEventsController.add(event);
-                  print('Received clipboard event from $peerId: ${event.eventId}');
+                  developer.log(
+                    'Received clipboard event from $peerId: ${event.eventId}',
+                  );
                 }
               }
 
               // Remove processed message from buffer
-              _socketBuffers[socket] = Uint8List.fromList(buf.sublist(messageHeaderSize + length));
+              _socketBuffers[socket] = Uint8List.fromList(
+                buf.sublist(messageHeaderSize + length),
+              );
             }
           } catch (e) {
-            print('Error processing incoming data from $peerId: $e');
+            developer.log('Error processing incoming data from $peerId: $e');
             socket.close();
           }
         },
-        onError: (error) => print('Socket error from $peerId: $error'),
+        onError: (error) => developer.log('Socket error from $peerId: $error'),
         onDone: () {
-          print('Connection closed from $peerId');
+          developer.log('Connection closed from $peerId');
           _socketBuffers.remove(socket);
           socket.close();
         },
       );
     } catch (e) {
-      print('Error handling incoming connection: $e');
+      developer.log('Error handling incoming connection: $e');
       _socketBuffers.remove(socket);
       await socket.close();
     }
@@ -148,6 +154,6 @@ class LanServerServiceImpl implements LanServerService {
 
     _isRunning = false;
     await _serverSocket?.close();
-    print('LAN server stopped');
+    developer.log('LAN server stopped');
   }
 }

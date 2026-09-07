@@ -19,7 +19,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +28,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // API & Auth
-        Provider<ApiClient>(
-          create: (_) => ApiClient(baseUrl: apiBaseUrl),
-        ),
+        Provider<ApiClient>(create: (_) => ApiClient(baseUrl: apiBaseUrl)),
         Provider<AuthService>(
           create: (context) => AuthServiceImpl(
             apiBaseUrl: apiBaseUrl,
@@ -39,14 +37,11 @@ class MyApp extends StatelessWidget {
         ),
         // Peer Discovery
         Provider<PeerDiscoveryService>(
-          create: (context) => PeerDiscoveryServiceImpl(
-            apiClient: context.read<ApiClient>(),
-          ),
+          create: (context) =>
+              PeerDiscoveryServiceImpl(apiClient: context.read<ApiClient>()),
         ),
         // Clipboard
-        Provider<ClipboardService>(
-          create: (_) => ClipboardServiceImpl(),
-        ),
+        Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),
         // LAN Transport
         Provider<LanTransportService>(
           create: (_) => LanTransportServiceImpl(

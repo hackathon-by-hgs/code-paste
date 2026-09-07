@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 
 /// PermissionService
@@ -24,13 +25,12 @@ class PermissionServiceImpl implements PermissionService {
   @override
   Future<bool> requestLocalNetworkPermission() async {
     try {
-      final bool result = await platform.invokeMethod<bool>(
-            'requestLocalNetworkPermission',
-          ) ??
+      final bool result =
+          await platform.invokeMethod<bool>('requestLocalNetworkPermission') ??
           false;
       return result;
     } catch (e) {
-      print('Error requesting local network permission: $e');
+      developer.log('Error requesting local network permission: $e');
       return false;
     }
   }
@@ -38,13 +38,12 @@ class PermissionServiceImpl implements PermissionService {
   @override
   Future<bool> requestBluetoothPermission() async {
     try {
-      final bool result = await platform.invokeMethod<bool>(
-            'requestBluetoothPermission',
-          ) ??
+      final bool result =
+          await platform.invokeMethod<bool>('requestBluetoothPermission') ??
           false;
       return result;
     } catch (e) {
-      print('Error requesting Bluetooth permission: $e');
+      developer.log('Error requesting Bluetooth permission: $e');
       return false;
     }
   }
@@ -52,13 +51,12 @@ class PermissionServiceImpl implements PermissionService {
   @override
   Future<bool> requestNotificationPermission() async {
     try {
-      final bool result = await platform.invokeMethod<bool>(
-            'requestNotificationPermission',
-          ) ??
+      final bool result =
+          await platform.invokeMethod<bool>('requestNotificationPermission') ??
           false;
       return result;
     } catch (e) {
-      print('Error requesting notification permission: $e');
+      developer.log('Error requesting notification permission: $e');
       return false;
     }
   }
@@ -75,7 +73,7 @@ class PermissionServiceImpl implements PermissionService {
 
       return true;
     } catch (e) {
-      print('Error checking permissions: $e');
+      developer.log('Error checking permissions: $e');
       return false;
     }
   }

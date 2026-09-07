@@ -1,9 +1,9 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import '../models/network.dart';
 import '../models/app_state.dart';
-import '../models/clipboard_event.dart';
 import '../services/permission_service.dart';
 import '../services/local_device_discovery.dart';
 import '../services/peer_discovery_service.dart';
@@ -77,7 +77,8 @@ class HomeProvider extends ChangeNotifier {
 
     try {
       // Request permissions
-      final hasPermissions = await permissionService.hasAllRequiredPermissions();
+      final hasPermissions = await permissionService
+          .hasAllRequiredPermissions();
 
       if (!hasPermissions) {
         _state = AppLifecycleState.permissionRequired;
@@ -99,9 +100,11 @@ class HomeProvider extends ChangeNotifier {
       // Fetch peer roster
       try {
         await peerDiscoveryService.fetchPeerRoster();
-        print('Peer roster fetched: ${peerDiscoveryService.getAvailablePeers().length} peers');
+        developer.log(
+          'Peer roster fetched: ${peerDiscoveryService.getAvailablePeers().length} peers',
+        );
       } catch (e) {
-        print('Failed to fetch peer roster: $e');
+        developer.log('Failed to fetch peer roster: $e');
         _error = AppError(
           message: 'Roster Fetch Failed',
           details: 'Could not fetch peer roster: $e',
@@ -115,24 +118,24 @@ class HomeProvider extends ChangeNotifier {
         _clipboardSyncEnabled = true;
 
         // Listen to clipboard events
-        _clipboardEventSubscription =
-            clipboardSyncService.receivedEvents.listen(
-          (event) {
-            print('Received clipboard event: ${event.eventId}');
-            notifyListeners();
-          },
-          onError: (e) {
-            print('Clipboard sync error: $e');
-            _error = AppError(
-              message: 'Sync Error',
-              details: e.toString(),
-              recoverable: true,
+        _clipboardEventSubscription = clipboardSyncService.receivedEvents
+            .listen(
+              (event) {
+                developer.log('Received clipboard event: ${event.eventId}');
+                notifyListeners();
+              },
+              onError: (e) {
+                developer.log('Clipboard sync error: $e');
+                _error = AppError(
+                  message: 'Sync Error',
+                  details: e.toString(),
+                  recoverable: true,
+                );
+                notifyListeners();
+              },
             );
-            notifyListeners();
-          },
-        );
       } catch (e) {
-        print('Failed to start clipboard sync: $e');
+        developer.log('Failed to start clipboard sync: $e');
       }
 
       // Move to active state and start discovery
