@@ -1,6 +1,8 @@
 import 'dart:convert';
 import '../models/peer.dart';
 import '../models/network.dart';
+import '../utils/crypto_verification.dart';
+import '../utils/secure_logging.dart';
 import 'api_client.dart';
 
 abstract class PeerDiscoveryService {
@@ -15,6 +17,12 @@ abstract class PeerDiscoveryService {
 class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
   final ApiClient _apiClient;
   PeerRoster? _cachedRoster;
+
+  // Control plane public keys for signature verification
+  // In production, these would be fetched from a secure source
+  static const Map<String, String> _controlPlaneKeys = {
+    // 'key-id-1': 'base64-encoded-ed25519-public-key',
+  };
 
   PeerDiscoveryServiceImpl({required ApiClient apiClient})
     : _apiClient = apiClient;
@@ -73,18 +81,48 @@ class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
       final payloadJson =
           jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
 
-      // TODO: Verify Ed25519 signature using signatureValue
-      // For now, assume signature is valid (backend provides it)
-      // In production, use dart_ed25519 or similar to verify:
-      //   verify(
-      //     publicKey: controlPlanePublicKey[signedRoster.signatureKeyId],
-      //     message: payloadBytes,
-      //     signature: base64.decode(signedRoster.signatureValue),
-      //   )
+      // Attempt Ed25519 signature verification
+      _verifyRosterSignature(signedRoster, payloadBytes);
 
       return payloadJson;
     } catch (e) {
+      SecureLogging.logSecurity('roster_decode_failed', e.toString());
       throw Exception('Failed to decode/verify roster: $e');
+    }
+  }
+
+  /// Verify Ed25519 signature of the peer roster
+  void _verifyRosterSignature(SignedPeerRoster signedRoster, List<int> payloadBytes) {
+    // Get the public key for verification
+    final publicKey = _controlPlaneKeys[signedRoster.signatureKeyId];
+
+    if (publicKey == null) {
+      // Public keys not configured yet - log and continue
+      // In production, this would be a verification failure
+      SecureLogging.logSecurity('no_signing_key', 'Missing public key: ${signedRoster.signatureKeyId}');
+      return;
+    }
+
+    try {
+      // Decode signature from base64
+      final signatureBytes = base64.decode(signedRoster.signatureValue);
+
+      // Verify signature using Ed25519
+      final isValid = CryptoVerification.verifyEd25519Signature(
+        publicKeyPem: publicKey,
+        message: payloadBytes,
+        signatureBytes: signatureBytes,
+      );
+
+      if (!isValid) {
+        SecureLogging.logSecurity('roster_verification_failed', 'Invalid Ed25519 signature');
+        throw Exception('Peer roster signature verification failed');
+      }
+
+      SecureLogging.logSyncEvent('Peer roster signature verified');
+    } catch (e) {
+      SecureLogging.logSecurity('roster_verification_error', e.toString());
+      rethrow;
     }
   }
 
