@@ -45,94 +45,94 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-50 flex justify-center p-8 font-sans">
+    <div className="min-h-screen bg-black text-white flex justify-center p-8 font-sans selection:bg-white selection:text-black">
       <div className="w-full max-w-2xl flex flex-col gap-8">
         
-        <header className="flex justify-between items-center border-b border-slate-700 pb-4">
-          <h1 className="text-2xl font-semibold">Clipboard</h1>
+        <header className="flex justify-between items-center border-b border-white/20 pb-4">
+          <h1 className="text-2xl font-bold tracking-tight uppercase">Clipboard</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-400">Not logged in</span>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <span className="text-sm text-neutral-400">Not logged in</span>
+            <button className="bg-white hover:bg-neutral-200 text-black px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors">
               Log In
             </button>
           </div>
         </header>
 
-        <main className="flex flex-col gap-6">
+        <main className="flex flex-col gap-8">
           
           {/* Sync Status Section */}
-          <section className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-sm">
+          <section className="border border-white/20 p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Sync Status</h2>
+              <h2 className="text-lg font-bold uppercase tracking-wide">Sync Status</h2>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" checked={isSyncing} onChange={handleToggleSync} />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:h-5 after:w-5 after:transition-all peer-checked:bg-white"></div>
               </label>
             </div>
-            <p className={`text-sm ${isSyncing ? 'text-emerald-400' : 'text-slate-400'}`}>
+            <p className={`text-sm ${isSyncing ? 'text-white' : 'text-neutral-500'}`}>
               {isSyncing ? 'Sync is ON. Your clipboard will be synced across your devices.' : 'Sync is paused. Devices will not receive clipboard updates.'}
             </p>
           </section>
 
           {/* Device Management Section */}
-          <section className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-semibold mb-1">My Devices</h2>
-            <p className="text-sm text-slate-400 mb-4">Devices that can receive your clipboard.</p>
-            <ul className="flex flex-col mb-4">
+          <section className="border border-white/20 p-6">
+            <h2 className="text-lg font-bold uppercase tracking-wide mb-1">My Devices</h2>
+            <p className="text-sm text-neutral-400 mb-6">Devices that can receive your clipboard.</p>
+            <ul className="flex flex-col mb-6">
               {devices.map(device => (
-                <li key={device.id} className="flex justify-between items-center py-3 border-b border-slate-700 last:border-0">
+                <li key={device.id} className="flex justify-between items-center py-4 border-b border-white/10 last:border-0">
                   <div>
-                    <strong className="block text-slate-200">{device.name}</strong>
-                    <span className="text-xs text-slate-400">{device.platform}</span>
+                    <strong className="block text-white font-medium">{device.name}</strong>
+                    <span className="text-xs text-neutral-400">{device.platform}</span>
                   </div>
-                  <button onClick={() => handleRevokeDevice(device.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                  <button onClick={() => handleRevokeDevice(device.id)} className="bg-transparent hover:bg-white text-white hover:text-black border border-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors">
                     Revoke
                   </button>
                 </li>
               ))}
-              {devices.length === 0 && <li className="py-3 text-sm text-slate-400">No devices registered.</li>}
+              {devices.length === 0 && <li className="py-4 text-sm text-neutral-500">No devices registered.</li>}
             </ul>
-            <button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <button className="bg-transparent hover:bg-white text-white hover:text-black border border-white px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors">
               Register New Device
             </button>
           </section>
 
           {/* Sharing Section */}
-          <section className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-semibold mb-4">Sharing Session</h2>
+          <section className="border border-white/20 p-6">
+            <h2 className="text-lg font-bold uppercase tracking-wide mb-4">Sharing Session</h2>
             
             {!isSharing ? (
-              <div className="flex flex-col items-start gap-4">
-                <p className="text-sm text-slate-400">Not currently sharing with others.</p>
-                <div className="flex gap-3">
-                  <button onClick={handleStartShare} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+              <div className="flex flex-col items-start gap-6">
+                <p className="text-sm text-neutral-400">Not currently sharing with others.</p>
+                <div className="flex gap-4">
+                  <button onClick={handleStartShare} className="bg-white hover:bg-neutral-200 text-black px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors">
                     Start Sharing
                   </button>
-                  <button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                  <button className="bg-transparent hover:bg-white text-white hover:text-black border border-white px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors">
                     Join Session
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-sm text-emerald-400 font-medium">You are sharing clipboard data.</p>
+              <div className="flex flex-col gap-6">
+                <p className="text-sm text-white font-bold border-l-2 border-white pl-3 py-1">You are sharing clipboard data.</p>
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Authorized Members:</h3>
-                  <ul className="flex flex-col mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wide mb-2 text-neutral-400">Authorized Members:</h3>
+                  <ul className="flex flex-col mb-6">
                     {shareMembers.length === 0 ? (
-                      <li className="text-sm text-slate-400 italic">Waiting for members to join...</li>
+                      <li className="text-sm text-neutral-500 italic py-2">Waiting for members to join...</li>
                     ) : (
                       shareMembers.map(member => (
-                        <li key={member.id} className="flex justify-between items-center py-2 border-b border-slate-700 last:border-0">
-                          <span className="text-sm text-slate-200">{member.name}</span>
-                          <button onClick={() => handleRevokeMember(member.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                        <li key={member.id} className="flex justify-between items-center py-3 border-b border-white/10 last:border-0">
+                          <span className="text-sm text-white font-medium">{member.name}</span>
+                          <button onClick={() => handleRevokeMember(member.id)} className="bg-transparent hover:bg-white text-white hover:text-black border border-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors">
                             Remove
                           </button>
                         </li>
                       ))
                     )}
                   </ul>
-                  <button onClick={handleStopShare} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                  <button onClick={handleStopShare} className="bg-white hover:bg-neutral-200 text-black px-4 py-2 text-sm font-bold uppercase tracking-wider transition-colors">
                     Stop Sharing
                   </button>
                 </div>
