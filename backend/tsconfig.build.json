@@ -1,6 +1,15 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "./src", "outDir": "./dist", "noUnusedLocals": false },
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "noUnusedLocals": false,
+    // Release builds are never incremental. With `incremental: true`, deleting `dist` without
+    // also deleting the .tsbuildinfo leaves tsc believing its outputs are current, so it exits 0
+    // having emitted almost nothing -- a build that "passes" and produces an artifact that cannot
+    // start. `npm run smoke` now catches that class of failure regardless.
+    "incremental": false
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
 }

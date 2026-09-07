@@ -25,7 +25,10 @@
     "test:all": "node scripts/run-tests.mjs --runInBand",
     "test:cov": "node scripts/run-tests.mjs --runInBand --coverage",
     "db:generate": "drizzle-kit generate",
-    "audit:security": "npm audit --omit=dev --audit-level=high"
+    "audit:security": "npm audit --omit=dev --audit-level=high",
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "smoke": "node scripts/smoke.mjs",
+    "postbuild": "node scripts/copy-assets.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

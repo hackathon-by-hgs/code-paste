@@ -37,6 +37,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      # Compiling is not the same as starting. tsc has exited 0 while emitting an artifact that
+      # crashed on its first require, and every other gate stayed green because they all run
+      # against src/. This boots dist/main.js and checks it serves.
+      - run: npm run smoke
 
   test:
     name: tests (${{ matrix.driver }})
