@@ -11,6 +11,6 @@ describe('Home Page', () => {
 
   it('renders the sync status', () => {
     render(<Page />);
-    expect(screen.getByText(/Sync is ON/i)).toBeDefined();
+    expect(screen.getByText(/Active/i)).toBeDefined();
   });
 });
