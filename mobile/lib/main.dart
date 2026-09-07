@@ -8,6 +8,7 @@ import 'services/local_device_discovery.dart';
 import 'services/auth_service.dart';
 import 'services/api_client.dart';
 import 'services/peer_discovery_service.dart';
+import 'services/control_plane_service.dart';
 import 'services/clipboard_service.dart';
 import 'services/clipboard_sync_service.dart';
 import 'services/lan_transport_service.dart';
@@ -39,6 +40,13 @@ class MyApp extends StatelessWidget {
         Provider<PeerDiscoveryService>(
           create: (context) =>
               PeerDiscoveryServiceImpl(apiClient: context.read<ApiClient>()),
+        ),
+        // Control Plane (for fetching signing keys)
+        Provider<ControlPlaneService>(
+          create: (context) => ControlPlaneService(
+            apiClient: context.read<ApiClient>(),
+            peerDiscovery: context.read<PeerDiscoveryService>(),
+          ),
         ),
         // Clipboard
         Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),
