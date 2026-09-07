@@ -175,11 +175,9 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
       return;
     }
 
-    int sentCount = 0;
     for (final peer in peers) {
       try {
         await _transport.sendEvent(event, peer.deviceId);
-        sentCount++;
       } catch (e) {
         SecureLogging.logError('sendEvent', e as Exception);
       }

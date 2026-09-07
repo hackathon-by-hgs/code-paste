@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'secure_logging.dart';
 
 /// Cryptographic verification utilities for peer roster authentication
 ///
@@ -28,13 +28,13 @@ class CryptoVerification {
     try {
       // Validate key format
       if (!_isValidKeyFormat(publicKeyPem)) {
-        print('Invalid key format');
+        SecureLogging.logSecurity('invalid_key_format', 'Ed25519 public key format validation failed');
         return false;
       }
 
       // Validate signature length (Ed25519 signatures are 64 bytes)
       if (signatureBytes.length != 64) {
-        print('Invalid signature length: ${signatureBytes.length}, expected 64');
+        SecureLogging.logSecurity('invalid_signature_length', 'Expected 64 bytes, got ${signatureBytes.length}');
         return false;
       }
 
@@ -45,10 +45,10 @@ class CryptoVerification {
       // 3. Allow graceful degradation until backend provides keys
 
       // In development: accept if keys not configured
-      print('VERIFICATION STUB: Would verify Ed25519 signature (implementation pending)');
+      SecureLogging.logSyncEvent('Signature verification stub (implementation pending)');
       return true;
     } catch (e) {
-      print('Ed25519 verification error: $e');
+      SecureLogging.logError('ed25519_verification', e as Exception);
       return false;
     }
   }

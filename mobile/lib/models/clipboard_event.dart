@@ -1,7 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'dart:async';
 
 enum ContentType {
   textPlain('text/plain'),
@@ -190,11 +189,6 @@ class ClipboardEvent {
     }
   }
 
-  /// Verify decoded size matches declared size
-  bool _verifySizeMatch() {
-    final actualSize = _computeDecodedSize(payload, contentType);
-    return actualSize == size;
-  }
 }
 
 class ClipboardSnapshot {
