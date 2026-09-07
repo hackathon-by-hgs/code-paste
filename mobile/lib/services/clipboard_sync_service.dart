@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 import 'dart:async';
 import '../models/clipboard_event.dart';
+import '../utils/secure_logging.dart';
 import 'clipboard_service.dart';
 import 'peer_discovery_service.dart';
 import 'transport_service.dart';
@@ -26,6 +27,11 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   StreamSubscription? _clipboardSubscription;
   late final StreamController<ClipboardEvent> _receivedEventsController;
 
+  // Event deduplication: keep track of received eventIds to prevent echo loops
+  final Set<String> _receivedEventIds = {};
+  static const int _maxDedupeCache = 1000; // Prevent unbounded memory growth
+  static const int _maxPayloadSize = 10485760; // 10 MB per spec
+
   @override
   bool get isRunning => _isRunning;
 
@@ -47,7 +53,29 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
 
   void _setupReceivedEventsForwarding() {
     _transport.receivedEvents.listen((event) async {
+      // Deduplication: skip if we've already processed this event
+      if (_receivedEventIds.contains(event.eventId)) {
+        developer.log('Skipping duplicate event: ${event.eventId}');
+        return;
+      }
+
+      // Add to dedup cache
+      _receivedEventIds.add(event.eventId);
+
+      // Limit cache size to prevent unbounded growth
+      if (_receivedEventIds.length > _maxDedupeCache) {
+        // Remove oldest entry (simple FIFO via removing first from Set view)
+        final toRemove = _receivedEventIds.first;
+        _receivedEventIds.remove(toRemove);
+      }
+
       try {
+        // Validate event against schema
+        if (!event.isValid(_maxPayloadSize)) {
+          SecureLogging.logSecurity('invalid_event', 'Event failed validation');
+          return;
+        }
+
         // Write received event to clipboard
         await _clipboardService.writeClipboard(
           event.payload,
@@ -55,7 +83,7 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
         );
         developer.log('Wrote received event to clipboard: ${event.eventId}');
       } catch (e) {
-        developer.log('Failed to write clipboard: $e');
+        developer.log('Error processing received event: $e');
       }
 
       _receivedEventsController.add(event);
@@ -125,19 +153,25 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
 
   @override
   Future<void> sendClipboardEvent(ClipboardEvent event) async {
+    // Validate event before sending
+    if (!event.isValid(_maxPayloadSize)) {
+      SecureLogging.logSecurity('oversized_payload', 'Event size ${event.size} exceeds limit');
+      return;
+    }
+
     if (!_transport.isRunning) {
-      developer.log('Transport not running, cannot send event');
+      SecureLogging.logSyncEvent('Transport not running, cannot send event');
       return;
     }
 
     if (!_peerDiscoveryService.isRosterValid()) {
-      developer.log('Peer roster not valid, cannot send event');
+      SecureLogging.logSyncEvent('Peer roster not valid, cannot send event');
       return;
     }
 
     final peers = _peerDiscoveryService.getAvailablePeers();
     if (peers.isEmpty) {
-      developer.log('No available peers to send clipboard event');
+      SecureLogging.logSyncEvent('No available peers to send clipboard event');
       return;
     }
 
@@ -147,13 +181,11 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
         await _transport.sendEvent(event, peer.deviceId);
         sentCount++;
       } catch (e) {
-        developer.log('Failed to send event to ${peer.deviceId}: $e');
+        SecureLogging.logError('sendEvent', e as Exception);
       }
     }
 
-    developer.log(
-      'Sent event ${event.eventId} to $sentCount/${peers.length} peers',
-    );
+    SecureLogging.logClipboardEvent('Sent event', event);
   }
 
   @override

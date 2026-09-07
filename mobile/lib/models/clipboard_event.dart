@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'dart:async';
 
 enum ContentType {
   textPlain('text/plain'),
@@ -19,6 +20,8 @@ enum ContentType {
 }
 
 class ClipboardEvent {
+  static const int version = 1; // Protocol version per spec
+
   final String eventId; // UUID
   final String senderDeviceId;
   final String? sessionId; // null for personal sync
@@ -64,6 +67,12 @@ class ClipboardEvent {
   }
 
   factory ClipboardEvent.fromJson(Map<String, dynamic> json) {
+    // Validate version is supported
+    final jsonVersion = json['version'] as int?;
+    if (jsonVersion != version) {
+      throw FormatException('Unsupported protocol version: $jsonVersion, expected $version');
+    }
+
     return ClipboardEvent(
       eventId: json['eventId'] as String,
       senderDeviceId: json['senderDeviceId'] as String,
@@ -80,7 +89,7 @@ class ClipboardEvent {
   }
 
   Map<String, dynamic> toJson() => {
-    'version': 1,
+    'version': version,
     'eventId': eventId,
     'senderDeviceId': senderDeviceId,
     'sessionId': sessionId,
@@ -112,20 +121,79 @@ class ClipboardEvent {
   }
 
   bool isValid(int maxSizeBytes) {
-    // Check size limit
+    // Check version is supported
+    if (version != 1) return false;
+
+    // Check size limit (must be 0-10485760 bytes per spec)
+    if (size < 0 || size > 10485760) return false;
     if (size > maxSizeBytes) return false;
 
-    // Check hash format
-    if (!hash.startsWith('sha256:')) return false;
+    // Check hash format: "sha256:<64 lowercase hex chars>"
+    final hashRegex = RegExp(r'^sha256:[0-9a-f]{64}$');
+    if (!hashRegex.hasMatch(hash)) return false;
 
-    // Check event ID is valid UUID
+    // Check event ID is valid UUID (v1-v8 format per RFC 4122)
+    if (!_isValidUUID(eventId)) return false;
+
+    // Check sequence is in valid range (0 to 2^53-1)
+    if (sequence < 0 || sequence > 9007199254740991) return false;
+
+    // Check content type is supported
     try {
-      Uuid.parse(eventId);
+      ContentType.fromMimeType(contentType.mimeType);
     } catch (_) {
       return false;
     }
 
+    // Validate payload encoding and size
+    if (!_validatePayloadEncoding(payload, contentType)) return false;
+
+    // Verify hash matches payload
+    if (!_verifyHash()) return false;
+
     return true;
+  }
+
+  bool _isValidUUID(String uuid) {
+    // UUID format: xxxxxxxx-xxxx-[1-8]xxx-[89ab]xxx-xxxxxxxxxxxx
+    final uuidRegex = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidRegex.hasMatch(uuid);
+  }
+
+  bool _validatePayloadEncoding(String payload, ContentType contentType) {
+    switch (contentType) {
+      case ContentType.textPlain:
+        // UTF-8 text is always valid
+        return true;
+      case ContentType.imagePng:
+      case ContentType.imageJpeg:
+        // Payload must be valid base64
+        try {
+          // Attempt decode to validate base64
+          const Base64Codec().decode(payload.replaceAll(RegExp(r'\s'), ''));
+          return true;
+        } catch (_) {
+          return false;
+        }
+    }
+  }
+
+  bool _verifyHash() {
+    try {
+      final expectedHash = _computeHash(payload);
+      return expectedHash == hash;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify decoded size matches declared size
+  bool _verifySizeMatch() {
+    final actualSize = _computeDecodedSize(payload, contentType);
+    return actualSize == size;
   }
 }
 
