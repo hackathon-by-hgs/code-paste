@@ -37,51 +37,63 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       controller: _controller,
-      initialChildSize: 0.15,
+      initialChildSize: 0.20,
       minChildSize: 0.15,
-      maxChildSize: 0.85,
+      maxChildSize: 0.90,
       snap: true,
-      snapSizes: const [0.15, 0.5, 0.85],
+      snapSizes: const [0.15, 0.50, 0.90],
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: BoxDecoration(
             color: CupertinoColors.systemBackground.resolveFrom(context),
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
             boxShadow: [
               BoxShadow(
-                color: CupertinoColors.black.withOpacity(0.1),
-                blurRadius: 12,
-                offset: const Offset(0, -4),
+                color: CupertinoColors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -8),
               ),
             ],
           ),
           child: Column(
             children: [
-              // Handle
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey3.resolveFrom(context),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+              // Draggable Handle Area
+              GestureDetector(
+                onVerticalDragUpdate: (_) {
+                  // Handle is draggable via the sheet itself
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Drag handle indicator
+                      Container(
+                        width: 40,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemGrey3
+                              .resolveFrom(context),
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // Title bar
+              // Title section
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Available Networks',
@@ -89,45 +101,103 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                               .textTheme
                               .navTitleTextStyle
                               .copyWith(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.5,
                               ),
                         ),
-                        if (widget.networks.isNotEmpty)
+                        if (widget.networks.isNotEmpty) ...[
+                          const SizedBox(height: 4),
                           Text(
-                            '${widget.networks.length} device${widget.networks.length == 1 ? '' : 's'}',
-                            style:
-                                CupertinoTheme.of(context).textTheme.textStyle
-                                    .copyWith(
-                              fontSize: 13,
-                              color: CupertinoColors.systemGrey
-                                  .resolveFrom(context),
-                            ),
+                            '${widget.networks.length} device${widget.networks.length == 1 ? '' : 's'} found',
+                            style: CupertinoTheme.of(context)
+                                .textTheme
+                                .textStyle
+                                .copyWith(
+                                  fontSize: 13,
+                                  color: CupertinoColors.systemGrey
+                                      .resolveFrom(context),
+                                  fontWeight: FontWeight.w400,
+                                ),
+                          ),
+                        ] else
+                          const SizedBox(height: 4),
+                        if (widget.isLoading)
+                          Text(
+                            'Scanning...',
+                            style: CupertinoTheme.of(context)
+                                .textTheme
+                                .textStyle
+                                .copyWith(
+                                  fontSize: 12,
+                                  color: CupertinoColors.systemGreen,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-              // Divider
-              Container(
-                height: 1,
-                color: CupertinoColors.systemGrey5.resolveFrom(context),
+              // Separator
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  height: 1,
+                  color: CupertinoColors.systemGrey4.resolveFrom(context),
+                ),
               ),
-              // Network list
+              // Networks list
               Expanded(
                 child: widget.networks.isEmpty
-                    ? CupertinoNetworkList(
-                        networks: [],
-                        onNetworkSelected: (_) {},
-                      )
-                    : SingleChildScrollView(
-                        controller: scrollController,
-                        child: CupertinoNetworkList(
-                          networks: widget.networks,
-                          onNetworkSelected: widget.onNetworkSelected,
-                          isLoading: widget.isLoading,
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                CupertinoIcons.wifi_slash,
+                                size: 48,
+                                color: CupertinoColors.systemGrey3
+                                    .resolveFrom(context),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Networks Found',
+                                style: CupertinoTheme.of(context)
+                                    .textTheme
+                                    .textStyle
+                                    .copyWith(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Searching for devices...',
+                                style: CupertinoTheme.of(context)
+                                    .textTheme
+                                    .textStyle
+                                    .copyWith(
+                                      fontSize: 13,
+                                      color: CupertinoColors.systemGrey
+                                          .resolveFrom(context),
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: widget.networks.length,
+                        itemBuilder: (context, index) {
+                          final network = widget.networks[index];
+                          return _buildNetworkTile(context, network);
+                        },
                       ),
               ),
             ],
@@ -135,5 +205,124 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
         );
       },
     );
+  }
+
+  Widget _buildNetworkTile(BuildContext context, Network network) {
+    final isConnected = network.isCurrentlyConnected;
+
+    return GestureDetector(
+      onTap: () => widget.onNetworkSelected(network),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemGrey6.resolveFrom(context),
+          borderRadius: BorderRadius.circular(12),
+          border: isConnected
+              ? Border.all(
+                  color: CupertinoColors.systemGreen,
+                  width: 2,
+                )
+              : null,
+        ),
+        child: Row(
+          children: [
+            // Icon
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Icon(
+                CupertinoIcons.device_desktop,
+                color: isConnected
+                    ? CupertinoColors.systemGreen
+                    : CupertinoColors.systemGrey,
+                size: 24,
+              ),
+            ),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    network.name,
+                    style: CupertinoTheme.of(context).textTheme.textStyle
+                        .copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (isConnected)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Text(
+                            'Connected',
+                            style: CupertinoTheme.of(context)
+                                .textTheme
+                                .textStyle
+                                .copyWith(
+                                  fontSize: 12,
+                                  color: CupertinoColors.systemGreen,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                      ..._buildSignalBars(network.getSignalBars()),
+                      const SizedBox(width: 6),
+                      Text(
+                        network.getSignalLabel(),
+                        style: CupertinoTheme.of(context)
+                            .textTheme
+                            .textStyle
+                            .copyWith(
+                              fontSize: 12,
+                              color: CupertinoColors.systemGrey
+                                  .resolveFrom(context),
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Trailing icon
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Icon(
+                isConnected
+                    ? CupertinoIcons.checkmark_alt_circle_fill
+                    : CupertinoIcons.chevron_right,
+                color: isConnected
+                    ? CupertinoColors.systemGreen
+                    : CupertinoColors.systemGrey3.resolveFrom(context),
+                size: 22,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildSignalBars(int bars) {
+    return List.generate(4, (index) {
+      final isActive = index < bars;
+      return Padding(
+        padding: const EdgeInsets.only(right: 1.5),
+        child: Container(
+          width: 2,
+          height: 10 + (index * 2),
+          decoration: BoxDecoration(
+            color: isActive
+                ? CupertinoColors.systemGrey
+                : CupertinoColors.systemGrey4,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      );
+    });
   }
 }
