@@ -12,8 +12,7 @@
   "dependencies": {
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "@code-paste/shared": "github:hackathon-by-hgs/code-paste#shared-v1.0.0"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
