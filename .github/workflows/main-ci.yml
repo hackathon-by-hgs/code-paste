@@ -1,0 +1,115 @@
+name: main CI
+
+# `main` holds no product code — it owns the docs, ADRs and the machine-readable contracts every
+# domain must agree on (DEV_GUIDE.md §5). This workflow proves those contracts are internally
+# consistent BEFORE any domain pins them, and that the docs that describe them stay link-clean.
+#
+# Per DEV_GUIDE.md §6 each branch defines its own CI. This file runs only for `main`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: nothing here needs to write to the repo (GitHub hardening guide).
+permissions:
+  contents: read
+
+concurrency:
+  group: main-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned so a compromised or broken upstream release cannot silently change the gate.
+  REDOCLY_VERSION: '1.34.19'
+
+jobs:
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/contracts-validate/package-lock.json
+
+      - name: Install contract tooling
+        working-directory: tools/contracts-validate
+        run: npm ci
+
+      - name: Validate schemas + vectors
+        # Every schema compiles; every valid vector is accepted; every rejectedBy:"schema" vector
+        # is rejected; every rejectedBy:"semantic" vector is a well-formed envelope. This is the
+        # security surface: an implementation that accepts a bad vector has a bug (DEV_GUIDE.md §5).
+        working-directory: tools/contracts-validate
+        run: npm run validate
+
+      - name: Lint OpenAPI contract
+        # Structural correctness of the control-plane contract (valid OpenAPI 3.1, resolvable $refs,
+        # unique/unambiguous paths, no phantom schema properties). Config: .redocly.yaml.
+        run: npx --yes @redocly/cli@${REDOCLY_VERSION} lint contracts/openapi/control-plane.yaml --config .redocly.yaml
+
+  docs-links:
+    name: docs-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative links in docs
+        # --offline verifies every relative link/reference resolves to a real file, deterministically,
+        # without depending on the reachability of external sites (which would make the gate flaky).
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress "**/*.md"
+          fail: true
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint workflow files
+        # Pinned container: static analysis of every .github/workflows/*.yml on this branch.
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: No committed secrets
+        # Deterministic, dependency-free enforcement of DEV_GUIDE.md §9 and RULES.md §2.15–16.
+        # GitHub-native secret scanning + push protection is the server-side complement — see
+        # docs/CI_CD.md. Docs/specs are excluded where they legitimately name key material.
+        run: |
+          set -euo pipefail
+          fail=0
+
+          if git ls-files | grep -nE '(^|/)\.env($|\.local$|\.development$|\.production$|\.test$)'; then
+            echo "::error::A .env file is tracked. Only .env.example may be committed (DEV_GUIDE.md §9)."
+            fail=1
+          fi
+
+          if git grep -nE 'BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY' -- . ':!*.md' ':!docs/**'; then
+            echo "::error::Private key material found in a tracked file."
+            fail=1
+          fi
+
+          # High-signal provider token shapes. Docs are excluded (they discuss tokens abstractly).
+          if git grep -nE '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|xox[baprs]-[0-9A-Za-z-]{10,}' -- . ':!*.md' ':!docs/**'; then
+            echo "::error::A token-shaped secret was found in a tracked file."
+            fail=1
+          fi
+
+          if [ "$fail" -eq 0 ]; then echo "No committed secrets found."; fi
+          exit "$fail"

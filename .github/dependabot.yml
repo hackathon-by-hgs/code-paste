@@ -1,0 +1,83 @@
+# Dependabot configuration.
+#
+# Dependabot reads this file ONLY from the default branch (`main`), but each `target-branch` entry
+# checks out that branch, finds its manifests, and opens PRs against it. This is how one config on
+# `main` keeps every unrelated-history domain branch patched without copying config around.
+#
+# `commit-message.prefix` is set so the resulting PR title passes each branch's Conventional-Commit
+# PR-title gate (scope `deps` / `deps-dev`).
+version: 2
+
+updates:
+  # ----- main: GitHub Actions + contract tooling -------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "ci(deps)" }
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/tools/contracts-validate"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "chore(deps)", prefix-development: "chore(deps-dev)" }
+
+  # ----- backend branch: NestJS / npm ------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/backend"
+    target-branch: "backend"
+    schedule: { interval: weekly, day: tuesday }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "chore(deps)", prefix-development: "chore(deps-dev)" }
+    groups:
+      backend-minor-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: "backend"
+    schedule: { interval: weekly, day: tuesday }
+    commit-message: { prefix: "ci(deps)" }
+
+  # ----- frontend branch: Next.js / pnpm ---------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/frontend"
+    target-branch: "frontend"
+    schedule: { interval: weekly, day: wednesday }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "chore(deps)", prefix-development: "chore(deps-dev)" }
+    groups:
+      frontend-minor-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: "frontend"
+    schedule: { interval: weekly, day: wednesday }
+    commit-message: { prefix: "ci(deps)" }
+
+  # ----- mobile branch: Flutter / pub + Gradle ---------------------------------------------------
+  - package-ecosystem: pub
+    directory: "/mobile"
+    target-branch: "mobile"
+    schedule: { interval: weekly, day: thursday }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "chore(deps)", prefix-development: "chore(deps-dev)" }
+  - package-ecosystem: gradle
+    directory: "/mobile/android"
+    target-branch: "mobile"
+    schedule: { interval: weekly, day: thursday }
+    commit-message: { prefix: "chore(deps)" }
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: "mobile"
+    schedule: { interval: weekly, day: thursday }
+    commit-message: { prefix: "ci(deps)" }
+
+  # ----- shared / desktop: uncomment once those branches carry manifests -------------------------
+  # - package-ecosystem: npm
+  #   directory: "/shared"
+  #   target-branch: "shared"
+  #   schedule: { interval: weekly }
+  #   commit-message: { prefix: "chore(deps)", prefix-development: "chore(deps-dev)" }

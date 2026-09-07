@@ -1,0 +1,27 @@
+# CODEOWNERS for `main` (docs, contracts, agent config).
+#
+# Owners are auto-requested for review on matching paths. To make owner review *mandatory*, enable
+# `require_code_owner_review` in .github/rulesets/main.json (off by default so a stale team handle
+# cannot deadlock merges — see docs/CI_CD.md).
+#
+# ⚠️ REPLACE the placeholder handles below with real GitHub usernames or org teams before enabling
+#    code-owner enforcement. A team must exist and have write access, or reviews cannot be satisfied.
+
+# Default owner for everything on main.
+*                       @hackathon-by-hgs/maintainers
+
+# The contract surface is the highest-blast-radius area: a change here obligates every domain.
+/contracts/             @hackathon-by-hgs/contract-owners
+/docs/PROTOCOL.md       @hackathon-by-hgs/contract-owners
+/docs/API_CONTRACTS.md  @hackathon-by-hgs/contract-owners
+/docs/SPEC_CONTRACT.md  @hackathon-by-hgs/contract-owners
+/.redocly.yaml          @hackathon-by-hgs/contract-owners
+
+# CI / release / governance plumbing.
+/.github/               @hackathon-by-hgs/maintainers
+/tools/                 @hackathon-by-hgs/maintainers
+/scripts/               @hackathon-by-hgs/maintainers
+
+# Security policy and threat model.
+/docs/SECURITY.md       @hackathon-by-hgs/security
+/.github/SECURITY.md    @hackathon-by-hgs/security

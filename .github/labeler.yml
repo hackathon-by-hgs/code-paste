@@ -1,0 +1,23 @@
+# actions/labeler@v5 config — labels PRs into `main` by the paths they touch.
+# Labels must exist in the repo (scripts/apply-rulesets.sh --labels creates them).
+
+"area: contracts":
+  - changed-files:
+      - any-glob-to-any-file: ["contracts/**"]
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "*.md"]
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: [".github/workflows/**", "tools/**", ".redocly.yaml", ".gitleaks.toml"]
+
+"area: governance":
+  - changed-files:
+      - any-glob-to-any-file:
+          [".github/CODEOWNERS", ".github/rulesets/**", ".github/ISSUE_TEMPLATE/**", ".github/pull_request_template.md", "CONTRIBUTING.md", ".github/SECURITY.md"]
+
+"area: agent-config":
+  - changed-files:
+      - any-glob-to-any-file: [".codex/**", "CLAUDE.md"]

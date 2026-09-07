@@ -1,0 +1,69 @@
+name: PR hygiene
+
+# Cheap, fast gates on the shape of a pull request into `main`. Content correctness is proven by
+# `main CI`; this proves the PR itself follows the conventions in DEV_GUIDE.md §8 and RULES.md §7.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Enforce Conventional Commit PR title
+        # A merged PR becomes one commit; its title becomes the history (RULES.md §7).
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          # `main` changes are cross-cutting; scopes name the affected area (DEV_GUIDE.md §8).
+          scopes: |
+            main
+            docs
+            contracts
+            protocol
+            ci
+            deps
+            deps-dev
+            security
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" must start lower-case, e.g. "docs(main): pin contract tooling".
+
+  labeler:
+    name: labeler
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Apply area labels from changed paths
+        uses: actions/labeler@v5
+        with:
+          sync-labels: true

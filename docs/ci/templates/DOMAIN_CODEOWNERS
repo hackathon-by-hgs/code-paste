@@ -1,0 +1,6 @@
+# Generic CODEOWNERS. Copy to `.github/CODEOWNERS` on a domain branch and replace <domain> and the
+# placeholder team handles with real GitHub usernames/teams. Enforcement stays OFF until the ruleset
+# flips `require_code_owner_review` to true (docs/CI_CD.md on main).
+
+*            @hackathon-by-hgs/<domain>
+/.github/    @hackathon-by-hgs/maintainers

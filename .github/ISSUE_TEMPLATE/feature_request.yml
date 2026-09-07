@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a change. Simplicity beats feature count (CLAUDE.md).
+labels: ["type: feature", "needs: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, re-read `docs/RULES.md` §1 and `docs/PRODUCT_PRINCIPLES.md`. Every
+        unnecessary click, setting, and permission is a product defect.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What user problem does this solve?
+      description: Describe the lazy-user scenario, not the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Primary domain
+      options: [backend, frontend, desktop, mobile, shared, contracts, cross-cutting]
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints check
+      options:
+        - label: This does not treat "same network" as authorization (CLAUDE.md).
+          required: true
+        - label: This does not require the user to understand ports, IPs, or tokens (RULES.md §10).
+          required: true
+        - label: If it touches a contract, it needs a version bump and a cross-cutting handoff.
