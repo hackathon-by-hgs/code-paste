@@ -160,8 +160,9 @@ class ApiClient {
   Map<String, dynamic> _handleResponse(http.Response response) {
     try {
       final body = response.body.isEmpty
-          ? {}
-          : jsonDecode(response.body) as Map<String, dynamic>;
+          ? <String, dynamic>{}
+          : (jsonDecode(response.body) as Map<dynamic, dynamic>)
+              .cast<String, dynamic>();
 
       switch (response.statusCode) {
         case 200:

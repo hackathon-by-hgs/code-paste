@@ -1,7 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/export.dart';
+import 'package:pointycastle/random/fortuna_random.dart';
 import 'dart:convert';
 import 'dart:math' show Random;
+import 'dart:typed_data';
 import 'dart:io' show Platform;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:crypto/crypto.dart';
@@ -336,20 +338,21 @@ class AuthServiceImpl implements AuthService {
   }
 
   // Generate RSA-2048 key pair
-  RSAKeyPair _generateKeyPair() {
+  AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> _generateKeyPair() {
     final generator = RSAKeyGenerator()
       ..init(
         ParametersWithRandom(
           RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64),
-          SecureRandom('Fortuna')..seed(KeyParameter(_getRandomBytes(32))),
+          FortunaRandom()..seed(KeyParameter(_getRandomBytes(32))),
         ),
       );
     return generator.generateKeyPair();
   }
 
-  List<int> _getRandomBytes(int count) {
+  Uint8List _getRandomBytes(int count) {
     final random = Random();
-    return List<int>.generate(count, (_) => random.nextInt(256));
+    final bytes = List<int>.generate(count, (_) => random.nextInt(256));
+    return Uint8List.fromList(bytes);
   }
 
   String _encodePublicKey(RSAPublicKey key) {
