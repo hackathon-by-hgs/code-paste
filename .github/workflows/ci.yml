@@ -1,0 +1,48 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ frontend ]
+  pull_request:
+    branches: [ frontend ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 9
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Typecheck
+      run: pnpm tsc --noEmit
+
+    - name: Lint
+      run: pnpm run lint
+
+    - name: Test (Unit & Integration)
+      run: pnpm run test
+
+    - name: Build
+      run: pnpm run build
+
+    - name: Contract Conformance
+      run: |
+        # Placeholder for contract vectors conformance testing 
+        # using the pinned CONTRACTS_VERSION
+        echo "Validating against $(cat ../CONTRACTS_VERSION)"
