@@ -17,6 +17,11 @@ class Network {
   final ConnectionStatus status;
   final SignalStrength signalStrength;
   final bool isCurrentlyConnected;
+  final String? deviceId; // From mDNS discovery or manual entry
+  final String? userId; // From roster matching
+  final String? publicKey; // From roster matching
+  final String? keyFingerprint; // From roster matching
+  final bool isVerified; // True if matched to roster peer
 
   Network({
     required this.id,
@@ -24,6 +29,11 @@ class Network {
     required this.status,
     required this.signalStrength,
     required this.isCurrentlyConnected,
+    this.deviceId,
+    this.userId,
+    this.publicKey,
+    this.keyFingerprint,
+    this.isVerified = false,
   });
 
   String getSignalLabel() {
