@@ -2,6 +2,11 @@ name: backend CI
 
 # This workflow belongs to the `backend` branch and runs only for it. Each domain branch defines
 # its own CI; there is no central workflow to coordinate (DEV_GUIDE.md §6).
+#
+# The filename is domain-scoped deliberately. GitHub keys a workflow by its FILE PATH, so every
+# domain using `.github/workflows/ci.yml` collapses into one workflow record in the Actions UI and
+# inherits whichever name was registered first — backend runs showed up as "Frontend CI". Naming
+# the file per domain keeps the per-branch independence DEV_GUIDE.md §6 assumes.
 on:
   push:
     branches: [backend, 'backend-*', 'feat/backend-*']
