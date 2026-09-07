@@ -1,0 +1,79 @@
+import 'package:flutter/cupertino.dart';
+
+class CupertinoPowerButton extends StatelessWidget {
+  final bool isActive;
+  final bool isLoading;
+  final VoidCallback onPressed;
+  final AnimationController animationController;
+  final double size;
+
+  const CupertinoPowerButton({
+    Key? key,
+    required this.isActive,
+    required this.isLoading,
+    required this.onPressed,
+    required this.animationController,
+    this.size = 100,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: isLoading ? null : onPressed,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 1.0, end: 0.95).animate(
+          CurvedAnimation(parent: animationController, curve: Curves.elasticOut),
+        ),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive
+                ? CupertinoColors.destructiveRed
+                : CupertinoColors.systemGrey5.resolveFrom(context),
+            boxShadow: [
+              BoxShadow(
+                color: (isActive
+                        ? CupertinoColors.destructiveRed
+                        : CupertinoColors.systemGrey5.resolveFrom(context))
+                    .withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isLoading ? null : onPressed,
+              customBorder: const CircleBorder(),
+              child: Center(
+                child: isLoading
+                    ? SizedBox(
+                        width: size * 0.5,
+                        height: size * 0.5,
+                        child: CupertinoActivityIndicator(
+                          color: isActive ? CupertinoColors.white : null,
+                          radius: 12,
+                        ),
+                      )
+                    : Icon(
+                        isActive
+                            ? CupertinoIcons.checkmark_alt
+                            : CupertinoIcons.power,
+                        size: size * 0.4,
+                        color: isActive
+                            ? CupertinoColors.white
+                            : CupertinoColors.label.resolveFrom(context),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

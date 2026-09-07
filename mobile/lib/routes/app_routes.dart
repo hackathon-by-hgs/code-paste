@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 import '../screens/splash/splash_screen.dart';
-import '../screens/home/home_screen.dart';
+import '../screens/home/home_screen_cupertino.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -15,7 +15,7 @@ class AppRoutes {
       ),
       GoRoute(
         path: home,
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) => const HomeScreenCupertino(),
       ),
     ],
   );
