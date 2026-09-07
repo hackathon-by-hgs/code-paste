@@ -22,8 +22,8 @@ class ControlPlaneService {
   ControlPlaneService({
     required ApiClient apiClient,
     required PeerDiscoveryService peerDiscovery,
-  })  : _apiClient = apiClient,
-        _peerDiscovery = peerDiscovery;
+  }) : _apiClient = apiClient,
+       _peerDiscovery = peerDiscovery;
 
   /// Fetch and register control plane signing keys
   /// This should be called after authentication to enable roster signature verification
@@ -46,14 +46,14 @@ class ControlPlaneService {
       //   ]
       // }
 
-      final response = await _apiClient.get(
-        '/authz/keys',
-        withAuth: true,
-      );
+      final response = await _apiClient.get('/authz/keys', withAuth: true);
 
       final keys = response['keys'] as List<dynamic>?;
       if (keys == null) {
-        SecureLogging.logSecurity('invalid_keys_response', 'No keys in response');
+        SecureLogging.logSecurity(
+          'invalid_keys_response',
+          'No keys in response',
+        );
         return;
       }
 
@@ -65,12 +65,18 @@ class ControlPlaneService {
           final algorithm = keyData['algorithm'] as String?;
 
           if (keyId == null || publicKey == null) {
-            SecureLogging.logSecurity('incomplete_key', 'Missing keyId or publicKey');
+            SecureLogging.logSecurity(
+              'incomplete_key',
+              'Missing keyId or publicKey',
+            );
             continue;
           }
 
           if (algorithm != 'Ed25519') {
-            SecureLogging.logSecurity('unsupported_algorithm', 'Algorithm: $algorithm (only Ed25519 supported)');
+            SecureLogging.logSecurity(
+              'unsupported_algorithm',
+              'Algorithm: $algorithm (only Ed25519 supported)',
+            );
             continue;
           }
 
@@ -82,7 +88,9 @@ class ControlPlaneService {
         }
       }
 
-      SecureLogging.logSyncEvent('Registered $registeredCount control plane keys');
+      SecureLogging.logSyncEvent(
+        'Registered $registeredCount control plane keys',
+      );
     } catch (e) {
       SecureLogging.logSecurity('fetch_keys_failed', e.toString());
       rethrow;
@@ -94,13 +102,18 @@ class ControlPlaneService {
   /// Disabled by default for development
   void enableStrictVerification() {
     _peerDiscovery.setStrictVerification(true);
-    SecureLogging.logSecurity('strict_verification_enabled', 'Signature verification is now mandatory');
+    SecureLogging.logSecurity(
+      'strict_verification_enabled',
+      'Signature verification is now mandatory',
+    );
   }
 
   /// Disable strict verification (development mode)
   void disableStrictVerification() {
     _peerDiscovery.setStrictVerification(false);
-    SecureLogging.logSyncEvent('Strict verification disabled (development mode)');
+    SecureLogging.logSyncEvent(
+      'Strict verification disabled (development mode)',
+    );
   }
 }
 

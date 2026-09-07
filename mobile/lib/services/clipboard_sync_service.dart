@@ -155,7 +155,10 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   Future<void> sendClipboardEvent(ClipboardEvent event) async {
     // Validate event before sending
     if (!event.isValid(_maxPayloadSize)) {
-      SecureLogging.logSecurity('oversized_payload', 'Event size ${event.size} exceeds limit');
+      SecureLogging.logSecurity(
+        'oversized_payload',
+        'Event size ${event.size} exceeds limit',
+      );
       return;
     }
 

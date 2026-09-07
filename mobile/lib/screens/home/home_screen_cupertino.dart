@@ -110,8 +110,9 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
         // Status text
         Text(
           statusMessage,
-          style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
-              .copyWith(color: statusColor),
+          style: CupertinoTheme.of(
+            context,
+          ).textTheme.navLargeTitleTextStyle.copyWith(color: statusColor),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
@@ -204,8 +205,7 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
         provider.state == AppLifecycleState.connectionFailed) {
       return CupertinoColors.destructiveRed;
     }
-    if (provider.isActive ||
-        provider.state == AppLifecycleState.connected) {
+    if (provider.isActive || provider.state == AppLifecycleState.connected) {
       return CupertinoColors.systemGreen;
     }
     return CupertinoColors.label.resolveFrom(context);
@@ -267,10 +267,26 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(
         filter: const ColorFilter.matrix([
-          0.8, 0, 0, 0, 0,
-          0, 0.8, 0, 0, 0,
-          0, 0, 0.8, 0, 0,
-          0, 0, 0, 1, 0,
+          0.8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]),
         child: Container(
           decoration: BoxDecoration(

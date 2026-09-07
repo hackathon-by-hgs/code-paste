@@ -69,7 +69,9 @@ class ClipboardEvent {
     // Validate version is supported
     final jsonVersion = json['version'] as int?;
     if (jsonVersion != version) {
-      throw FormatException('Unsupported protocol version: $jsonVersion, expected $version');
+      throw FormatException(
+        'Unsupported protocol version: $jsonVersion, expected $version',
+      );
     }
 
     return ClipboardEvent(
@@ -188,7 +190,6 @@ class ClipboardEvent {
       return false;
     }
   }
-
 }
 
 class ClipboardSnapshot {

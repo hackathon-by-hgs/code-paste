@@ -28,7 +28,10 @@ class Ed25519Verifier {
       _trustedKeys[keyId] = publicKeyBase64;
       SecureLogging.logSyncEvent('Registered Ed25519 key: $keyId');
     } else {
-      SecureLogging.logSecurity('invalid_key_format', 'Failed to register key $keyId');
+      SecureLogging.logSecurity(
+        'invalid_key_format',
+        'Failed to register key $keyId',
+      );
     }
   }
 
@@ -48,7 +51,10 @@ class Ed25519Verifier {
     try {
       // Validate signature format
       if (!_isValidSignatureFormat(signatureBytes)) {
-        SecureLogging.logSecurity('invalid_signature_format', 'Signature must be 64 bytes');
+        SecureLogging.logSecurity(
+          'invalid_signature_format',
+          'Signature must be 64 bytes',
+        );
         return false;
       }
 
@@ -57,11 +63,16 @@ class Ed25519Verifier {
 
       if (publicKey == null) {
         if (_strictMode) {
-          SecureLogging.logSecurity('missing_key', 'No key registered for $keyId');
+          SecureLogging.logSecurity(
+            'missing_key',
+            'No key registered for $keyId',
+          );
           return false;
         }
         // Development mode: accept without verification
-        SecureLogging.logSyncEvent('Skipping verification for $keyId (key not available)');
+        SecureLogging.logSyncEvent(
+          'Skipping verification for $keyId (key not available)',
+        );
         return true;
       }
 
@@ -101,12 +112,18 @@ class Ed25519Verifier {
       // 4. Basic signature format check (first/last bytes make sense)
 
       if (publicKeyBytes.length != 32) {
-        SecureLogging.logSecurity('invalid_key_length', 'Expected 32 bytes, got ${publicKeyBytes.length}');
+        SecureLogging.logSecurity(
+          'invalid_key_length',
+          'Expected 32 bytes, got ${publicKeyBytes.length}',
+        );
         return false;
       }
 
       if (message.isEmpty) {
-        SecureLogging.logSecurity('empty_message', 'Cannot verify empty message');
+        SecureLogging.logSecurity(
+          'empty_message',
+          'Cannot verify empty message',
+        );
         return false;
       }
 
@@ -114,7 +131,10 @@ class Ed25519Verifier {
       // Check that signature isn't obviously corrupted (basic sanity check)
       // This is NOT cryptographic verification and should be replaced immediately
       if (_isObviouslyCorrupted(signatureBytes)) {
-        SecureLogging.logSecurity('corrupted_signature', 'Signature failed basic integrity check');
+        SecureLogging.logSecurity(
+          'corrupted_signature',
+          'Signature failed basic integrity check',
+        );
         return false;
       }
 
@@ -125,7 +145,9 @@ class Ed25519Verifier {
       //   return signer.verifySignature(Uint8List.fromList(message), ...);
 
       // For development: log and accept
-      SecureLogging.logSyncEvent('Signature passed development-mode validation');
+      SecureLogging.logSyncEvent(
+        'Signature passed development-mode validation',
+      );
       return true;
     } catch (e) {
       SecureLogging.logError('perform_verification', e as Exception);
@@ -214,5 +236,6 @@ class CryptoKey {
   });
 
   bool get isRevoked => revokedAt != null;
-  bool get isValid => !isRevoked && DateTime.now().isBefore(createdAt.add(Duration(days: 365)));
+  bool get isValid =>
+      !isRevoked && DateTime.now().isBefore(createdAt.add(Duration(days: 365)));
 }

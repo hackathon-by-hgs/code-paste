@@ -103,7 +103,10 @@ class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
   }
 
   /// Verify Ed25519 signature of the peer roster
-  void _verifyRosterSignature(SignedPeerRoster signedRoster, List<int> payloadBytes) {
+  void _verifyRosterSignature(
+    SignedPeerRoster signedRoster,
+    List<int> payloadBytes,
+  ) {
     try {
       // Decode signature from base64
       final signatureBytes = base64.decode(signedRoster.signatureValue);
@@ -116,11 +119,16 @@ class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
       );
 
       if (!isValid) {
-        SecureLogging.logSecurity('roster_verification_failed', 'Signature verification failed for key ${signedRoster.signatureKeyId}');
+        SecureLogging.logSecurity(
+          'roster_verification_failed',
+          'Signature verification failed for key ${signedRoster.signatureKeyId}',
+        );
         throw Exception('Peer roster signature verification failed');
       }
 
-      SecureLogging.logSyncEvent('Peer roster signature verified with key ${signedRoster.signatureKeyId}');
+      SecureLogging.logSyncEvent(
+        'Peer roster signature verified with key ${signedRoster.signatureKeyId}',
+      );
     } catch (e) {
       SecureLogging.logSecurity('roster_verification_error', e.toString());
       rethrow;

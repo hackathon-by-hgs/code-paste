@@ -167,9 +167,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                         widget.isLoading
                             ? 'Searching for Devices'
                             : 'No Networks Found',
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .textStyle
+                        style: CupertinoTheme.of(context).textTheme.textStyle
                             .copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -180,13 +178,12 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                         widget.isLoading
                             ? 'Scanning your network for available devices...'
                             : 'Make sure your devices are on the same network',
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .textStyle
+                        style: CupertinoTheme.of(context).textTheme.textStyle
                             .copyWith(
                               fontSize: 13,
-                              color: CupertinoColors.systemGrey
-                                  .resolveFrom(context),
+                              color: CupertinoColors.systemGrey.resolveFrom(
+                                context,
+                              ),
                             ),
                         textAlign: TextAlign.center,
                       ),
@@ -208,8 +205,9 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                     style: CupertinoTheme.of(context).textTheme.textStyle
                         .copyWith(
                           fontSize: 12,
-                          color: CupertinoColors.systemGrey
-                              .resolveFrom(context),
+                          color: CupertinoColors.systemGrey.resolveFrom(
+                            context,
+                          ),
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -273,10 +271,7 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                   Text(
                     network.name,
                     style: CupertinoTheme.of(context).textTheme.textStyle
-                        .copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        .copyWith(fontSize: 16, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -288,8 +283,9 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                           padding: const EdgeInsets.only(right: 8),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: CupertinoColors.systemGreen
-                                  .withValues(alpha: 0.2),
+                              color: CupertinoColors.systemGreen.withValues(
+                                alpha: 0.2,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             padding: const EdgeInsets.symmetric(
@@ -313,13 +309,12 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
                       const SizedBox(width: 6),
                       Text(
                         network.getSignalLabel(),
-                        style: CupertinoTheme.of(context)
-                            .textTheme
-                            .textStyle
+                        style: CupertinoTheme.of(context).textTheme.textStyle
                             .copyWith(
                               fontSize: 12,
-                              color: CupertinoColors.systemGrey
-                                  .resolveFrom(context),
+                              color: CupertinoColors.systemGrey.resolveFrom(
+                                context,
+                              ),
                             ),
                       ),
                     ],

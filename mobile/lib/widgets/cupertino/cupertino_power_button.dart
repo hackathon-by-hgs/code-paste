@@ -62,7 +62,10 @@ class _CupertinoPowerButtonState extends State<CupertinoPowerButton>
           if (widget.isActive)
             ScaleTransition(
               scale: Tween<double>(begin: 1.0, end: 1.3).animate(
-                CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+                CurvedAnimation(
+                  parent: _pulseController,
+                  curve: Curves.easeOut,
+                ),
               ),
               child: Container(
                 width: widget.size,
@@ -94,10 +97,13 @@ class _CupertinoPowerButtonState extends State<CupertinoPowerButton>
                     : CupertinoColors.systemGrey5.resolveFrom(context),
                 boxShadow: [
                   BoxShadow(
-                    color: (widget.isActive
-                            ? CupertinoColors.destructiveRed
-                            : CupertinoColors.systemGrey5.resolveFrom(context))
-                        .withValues(alpha: 0.4),
+                    color:
+                        (widget.isActive
+                                ? CupertinoColors.destructiveRed
+                                : CupertinoColors.systemGrey5.resolveFrom(
+                                    context,
+                                  ))
+                            .withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 6),
                     spreadRadius: widget.isActive ? 2 : 0,
@@ -119,9 +125,7 @@ class _CupertinoPowerButtonState extends State<CupertinoPowerButton>
                         width: widget.size * 0.5,
                         height: widget.size * 0.5,
                         child: CupertinoActivityIndicator(
-                          color: widget.isActive
-                              ? CupertinoColors.white
-                              : null,
+                          color: widget.isActive ? CupertinoColors.white : null,
                           radius: 12,
                         ),
                       )
