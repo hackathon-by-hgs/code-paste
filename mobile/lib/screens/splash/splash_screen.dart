@@ -28,7 +28,9 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigateToHome() {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        context.go('/home');
+        // TODO: Check if user is authenticated
+        // For now, go to login
+        context.go('/login');
       }
     });
   }

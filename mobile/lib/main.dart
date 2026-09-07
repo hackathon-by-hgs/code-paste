@@ -5,6 +5,7 @@ import 'routes/app_routes.dart';
 import 'providers/home_provider.dart';
 import 'services/permission_service.dart';
 import 'services/local_device_discovery.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,6 +18,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AuthService>(
+          create: (_) => AuthServiceImpl(
+            apiBaseUrl: 'https://api.code-paste.example/v1',
+          ),
+        ),
         ChangeNotifierProvider(
           create: (_) => HomeProvider(
             permissionService: PermissionServiceImpl(),

@@ -1,0 +1,286 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:pointycastle/export.dart';
+import 'dart:convert';
+import 'dart:math' show Random;
+
+class TokenPair {
+  final String accessToken;
+  final String refreshToken;
+  final DateTime expiresAt;
+
+  TokenPair({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.expiresAt,
+  });
+
+  factory TokenPair.fromJson(Map<String, dynamic> json) {
+    return TokenPair(
+      accessToken: json['accessToken'] as String,
+      refreshToken: json['refreshToken'] as String,
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'accessToken': accessToken,
+    'refreshToken': refreshToken,
+    'expiresAt': expiresAt.toIso8601String(),
+  };
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool get isValid => !isExpired;
+}
+
+class DeviceCredentials {
+  final String deviceId;
+  final String deviceName;
+  final String publicKey;
+  final String privateKey; // Never sent to server
+  final String platform;
+  final String appVersion;
+  final String protocolVersion;
+
+  DeviceCredentials({
+    required this.deviceId,
+    required this.deviceName,
+    required this.publicKey,
+    required this.privateKey,
+    required this.platform,
+    required this.appVersion,
+    required this.protocolVersion,
+  });
+
+  factory DeviceCredentials.fromJson(Map<String, dynamic> json) {
+    return DeviceCredentials(
+      deviceId: json['deviceId'] as String,
+      deviceName: json['deviceName'] as String,
+      publicKey: json['publicKey'] as String,
+      privateKey: json['privateKey'] as String,
+      platform: json['platform'] as String,
+      appVersion: json['appVersion'] as String,
+      protocolVersion: json['protocolVersion'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'deviceId': deviceId,
+    'deviceName': deviceName,
+    'publicKey': publicKey,
+    'privateKey': privateKey,
+    'platform': platform,
+    'appVersion': appVersion,
+    'protocolVersion': protocolVersion,
+  };
+}
+
+abstract class AuthService {
+  Future<TokenPair> login(String email, String password);
+  Future<TokenPair> refresh();
+  Future<void> logout();
+  Future<TokenPair?> getStoredTokens();
+  Future<void> saveTokens(TokenPair tokens);
+  Future<DeviceCredentials> registerDevice(
+    String pairingCode,
+    String deviceName,
+  );
+  Future<DeviceCredentials?> getStoredDeviceCredentials();
+  Future<void> saveDeviceCredentials(DeviceCredentials credentials);
+  Future<void> clearAll();
+}
+
+class AuthServiceImpl implements AuthService {
+  static const String _tokenKey = 'auth_tokens';
+  static const String _deviceKey = 'device_credentials';
+  static const String _refreshTokenKey = 'refresh_token_secure';
+
+  final FlutterSecureStorage _secureStorage;
+  final String apiBaseUrl;
+
+  TokenPair? _cachedTokens;
+
+  AuthServiceImpl({
+    required this.apiBaseUrl,
+    FlutterSecureStorage? secureStorage,
+  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+
+  @override
+  Future<TokenPair> login(String email, String password) async {
+    try {
+      // TODO: Replace with actual HTTP call to POST /auth/login
+      // For now, mock implementation
+      final tokens = TokenPair(
+        accessToken: 'mock_access_token_$email',
+        refreshToken: 'mock_refresh_token_$email',
+        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      );
+
+      await saveTokens(tokens);
+      _cachedTokens = tokens;
+      return tokens;
+    } catch (e) {
+      throw Exception('Login failed: $e');
+    }
+  }
+
+  @override
+  Future<TokenPair> refresh() async {
+    try {
+      final storedTokens = await getStoredTokens();
+      if (storedTokens == null) {
+        throw Exception('No refresh token available');
+      }
+
+      // TODO: Replace with actual HTTP call to POST /auth/refresh
+      // with storedTokens.refreshToken
+      final newTokens = TokenPair(
+        accessToken: 'mock_new_access_token',
+        refreshToken: 'mock_new_refresh_token',
+        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      );
+
+      await saveTokens(newTokens);
+      _cachedTokens = newTokens;
+      return newTokens;
+    } catch (e) {
+      await clearAll();
+      throw Exception('Token refresh failed: $e');
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    try {
+      final tokens = await getStoredTokens();
+      if (tokens != null) {
+        // TODO: Call POST /auth/logout with refresh token
+      }
+      await clearAll();
+    } catch (e) {
+      // Clear locally even if server call fails
+      await clearAll();
+    }
+  }
+
+  @override
+  Future<TokenPair?> getStoredTokens() async {
+    if (_cachedTokens != null && _cachedTokens!.isValid) {
+      return _cachedTokens;
+    }
+
+    try {
+      final jsonStr = await _secureStorage.read(key: _tokenKey);
+      if (jsonStr == null) return null;
+
+      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+      _cachedTokens = TokenPair.fromJson(json);
+
+      if (_cachedTokens!.isExpired) {
+        return null; // Return null if expired, let caller handle refresh
+      }
+
+      return _cachedTokens;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveTokens(TokenPair tokens) async {
+    await _secureStorage.write(
+      key: _tokenKey,
+      value: jsonEncode(tokens.toJson()),
+    );
+    _cachedTokens = tokens;
+  }
+
+  @override
+  Future<DeviceCredentials> registerDevice(
+    String pairingCode,
+    String deviceName,
+  ) async {
+    try {
+      // Generate RSA key pair
+      final keyPair = _generateKeyPair();
+      final publicKeyPem = _encodePublicKey(keyPair.publicKey);
+      final privateKeyPem = _encodePrivateKey(keyPair.privateKey);
+
+      // TODO: Replace with actual HTTP call to POST /devices
+      // with pairingCode and public key
+      const platform = 'android'; // TODO: Detect platform
+      const appVersion = '1.0.0'; // TODO: Get from app config
+      const protocolVersion = '1';
+
+      final credentials = DeviceCredentials(
+        deviceId: 'mock_device_id_${DateTime.now().millisecondsSinceEpoch}',
+        deviceName: deviceName,
+        publicKey: publicKeyPem,
+        privateKey: privateKeyPem,
+        platform: platform,
+        appVersion: appVersion,
+        protocolVersion: protocolVersion,
+      );
+
+      await saveDeviceCredentials(credentials);
+      return credentials;
+    } catch (e) {
+      throw Exception('Device registration failed: $e');
+    }
+  }
+
+  @override
+  Future<DeviceCredentials?> getStoredDeviceCredentials() async {
+    try {
+      final jsonStr = await _secureStorage.read(key: _deviceKey);
+      if (jsonStr == null) return null;
+
+      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return DeviceCredentials.fromJson(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> saveDeviceCredentials(DeviceCredentials credentials) async {
+    await _secureStorage.write(
+      key: _deviceKey,
+      value: jsonEncode(credentials.toJson()),
+    );
+  }
+
+  @override
+  Future<void> clearAll() async {
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _deviceKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+    _cachedTokens = null;
+  }
+
+  // Generate RSA-2048 key pair
+  RSAKeyPair _generateKeyPair() {
+    final generator = RSAKeyGenerator()
+      ..init(
+        ParametersWithRandom(
+          RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64),
+          SecureRandom('Fortuna')..seed(KeyParameter(_getRandomBytes(32))),
+        ),
+      );
+    return generator.generateKeyPair();
+  }
+
+  List<int> _getRandomBytes(int count) {
+    final random = Random();
+    return List<int>.generate(count, (_) => random.nextInt(256));
+  }
+
+  String _encodePublicKey(RSAPublicKey key) {
+    // TODO: Proper PEM encoding of RSA public key
+    return 'mock_public_key_${key.modulus}';
+  }
+
+  String _encodePrivateKey(RSAPrivateKey key) {
+    // TODO: Proper PEM encoding of RSA private key
+    return 'mock_private_key_${key.privateExponent}';
+  }
+}
