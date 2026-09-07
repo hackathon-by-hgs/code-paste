@@ -20,13 +20,11 @@ class CupertinoBottomSheet extends StatefulWidget {
 
 class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
   late DraggableScrollableController _controller;
-  late double _currentSize;
 
   @override
   void initState() {
     super.initState();
     _controller = DraggableScrollableController();
-    _currentSize = 0.15;
   }
 
   @override
@@ -44,9 +42,6 @@ class _CupertinoBottomSheetState extends State<CupertinoBottomSheet> {
       maxChildSize: 0.85,
       snap: true,
       snapSizes: const [0.15, 0.5, 0.85],
-      onDragged: (size) {
-        _currentSize = size;
-      },
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: BoxDecoration(

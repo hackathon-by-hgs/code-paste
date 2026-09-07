@@ -9,6 +9,7 @@ abstract class LocalDeviceDiscovery {
   Future<List<Network>> discoverDevices();
   Stream<Network> get discoveryStream;
   Future<void> stopDiscovery();
+  void dispose();
 }
 
 class LocalDeviceDiscoveryImpl implements LocalDeviceDiscovery {

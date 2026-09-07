@@ -18,8 +18,6 @@ class CupertinoPowerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
-
     return GestureDetector(
       onTap: isLoading ? null : onPressed,
       child: ScaleTransition(
@@ -45,32 +43,25 @@ class CupertinoPowerButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: isLoading ? null : onPressed,
-              customBorder: const CircleBorder(),
-              child: Center(
-                child: isLoading
-                    ? SizedBox(
-                        width: size * 0.5,
-                        height: size * 0.5,
-                        child: CupertinoActivityIndicator(
-                          color: isActive ? CupertinoColors.white : null,
-                          radius: 12,
-                        ),
-                      )
-                    : Icon(
-                        isActive
-                            ? CupertinoIcons.checkmark_alt
-                            : CupertinoIcons.power,
-                        size: size * 0.4,
-                        color: isActive
-                            ? CupertinoColors.white
-                            : CupertinoColors.label.resolveFrom(context),
-                      ),
-              ),
-            ),
+          child: Center(
+            child: isLoading
+                ? SizedBox(
+                    width: size * 0.5,
+                    height: size * 0.5,
+                    child: CupertinoActivityIndicator(
+                      color: isActive ? CupertinoColors.white : null,
+                      radius: 12,
+                    ),
+                  )
+                : Icon(
+                    isActive
+                        ? CupertinoIcons.checkmark_alt
+                        : CupertinoIcons.power,
+                    size: size * 0.4,
+                    color: isActive
+                        ? CupertinoColors.white
+                        : CupertinoColors.label.resolveFrom(context),
+                  ),
           ),
         ),
       ),
