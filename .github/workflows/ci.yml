@@ -1,0 +1,121 @@
+name: backend CI
+
+# This workflow belongs to the `backend` branch and runs only for it. Each domain branch defines
+# its own CI; there is no central workflow to coordinate (DEV_GUIDE.md §6).
+on:
+  push:
+    branches: [backend, 'backend-*', 'feat/backend-*']
+  pull_request:
+    branches: [backend]
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  quality:
+    name: format · lint · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run format
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  test:
+    name: tests (${{ matrix.driver }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The same suites run against both drivers. PGlite is what a developer gets with no
+        # infrastructure; postgres is what production runs. Testing only one would let a
+        # driver-specific behaviour difference reach production unnoticed (ADR-007).
+        driver: [pglite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: code_paste_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      # Synthetic. Never a real secret (TEST_STRATEGY.md, Test data rule).
+      AUTH_JWT_SECRET: ci-only-synthetic-jwt-secret-value-0123456789abcdef
+      DATABASE_URL: ${{ matrix.driver == 'postgres' && 'postgres://postgres:ci@localhost:5432/code_paste_test' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history plus tags: the contract pin resolves a tag on main.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      - name: Pin contracts
+        run: |
+          git fetch origin --tags --force
+          npm run contracts:pin
+
+      - run: npm run test:unit
+      - name: Contract conformance
+        run: npm run test:contract
+      - run: npm run test:integration
+      - run: npm run test:security
+      - run: npm run test:e2e
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      # Production dependencies only: a dev-time advisory should not block a release, but a
+      # shipped one must (SPEC_CONTRACT.md §15.3).
+      - run: npm run audit:security
+
+  no-secrets:
+    name: no secrets committed
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject committed .env files and key material
+        run: |
+          # DEV_GUIDE.md §9: never commit .env, tokens, private keys or device keys.
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production|development)$'; then
+            echo "::error::A .env file is tracked. Only .env.example may be committed."
+            exit 1
+          fi
+          if git grep -lE 'BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY' -- . ':!*.md'; then
+            echo "::error::Private key material found in tracked files."
+            exit 1
+          fi
+          echo "No committed secrets found."
