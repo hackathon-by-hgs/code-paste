@@ -1,15 +1,16 @@
+import 'package:flutter/services.dart';
+
 /// PermissionService
 /// Handles platform-specific permission requests for iOS and Android
 ///
 /// Required permissions for the app:
-/// - Clipboard access (implicit on both platforms, via native integration)
 /// - Local Network (iOS 14+, Android 12+)
 /// - Bluetooth (for peer discovery and connection)
 /// - Notification (optional, for alerts)
 ///
 /// Platform specifics:
 /// - iOS: Uses NSLocalNetworkUsageDescription in Info.plist
-/// - Android: Uses AndroidManifest.xml permissions
+/// - Android: Uses AndroidManifest.xml permissions + runtime permissions
 abstract class PermissionService {
   Future<bool> requestLocalNetworkPermission();
   Future<bool> requestBluetoothPermission();
@@ -18,35 +19,64 @@ abstract class PermissionService {
 }
 
 class PermissionServiceImpl implements PermissionService {
+  static const platform = MethodChannel('com.hgs.copypaste/permissions');
+
   @override
   Future<bool> requestLocalNetworkPermission() async {
-    // TODO: Implement platform-specific local network permission
-    // iOS: Use iOS 14+ APIs
-    // Android: Check Android 12+ runtime permissions
-    return false;
+    try {
+      final bool result = await platform.invokeMethod<bool>(
+            'requestLocalNetworkPermission',
+          ) ??
+          false;
+      return result;
+    } catch (e) {
+      print('Error requesting local network permission: $e');
+      return false;
+    }
   }
 
   @override
   Future<bool> requestBluetoothPermission() async {
-    // TODO: Implement platform-specific Bluetooth permission
-    // iOS: Use CBCentralManager
-    // Android: Runtime permissions for BLE
-    return false;
+    try {
+      final bool result = await platform.invokeMethod<bool>(
+            'requestBluetoothPermission',
+          ) ??
+          false;
+      return result;
+    } catch (e) {
+      print('Error requesting Bluetooth permission: $e');
+      return false;
+    }
   }
 
   @override
   Future<bool> requestNotificationPermission() async {
-    // TODO: Implement notification permission
-    // iOS: UNUserNotificationCenter
-    // Android: Notification runtime permission
-    return false;
+    try {
+      final bool result = await platform.invokeMethod<bool>(
+            'requestNotificationPermission',
+          ) ??
+          false;
+      return result;
+    } catch (e) {
+      print('Error requesting notification permission: $e');
+      return false;
+    }
   }
 
   @override
   Future<bool> hasAllRequiredPermissions() async {
-    // TODO: Check if all required permissions are granted
-    final localNetwork = await requestLocalNetworkPermission();
-    final bluetooth = await requestBluetoothPermission();
-    return localNetwork && bluetooth;
+    try {
+      // Request all required permissions in sequence
+      final localNetwork = await requestLocalNetworkPermission();
+      if (!localNetwork) return false;
+
+      final bluetooth = await requestBluetoothPermission();
+      if (!bluetooth) return false;
+
+      return true;
+    } catch (e) {
+      print('Error checking permissions: $e');
+      return false;
+    }
   }
 }

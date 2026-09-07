@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Copy & Paste needs access to your local network to discover and sync with other devices on your Wi-Fi network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_copypaste._tcp</string>
+	</array>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Copy & Paste uses Bluetooth to discover nearby devices for clipboard synchronization.</string>
+	<key>NSBluetoothAlwaysAndWhenInUseUsageDescription</key>
+	<string>Copy & Paste uses Bluetooth to discover and connect to nearby devices for clipboard synchronization.</string>
 </dict>
 </plist>
