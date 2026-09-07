@@ -54,7 +54,10 @@ class _SplashScreenState extends State<SplashScreen>
               opacity: _animationController,
               child: ScaleTransition(
                 scale: Tween<double>(begin: 0.5, end: 1.0).animate(
-                  CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeOut,
+                  ),
                 ),
                 child: Container(
                   width: 80,
@@ -63,12 +66,13 @@ class _SplashScreenState extends State<SplashScreen>
                     color: CupertinoColors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Center(
-                    child: Icon(
-                      CupertinoIcons.doc_on_clipboard,
-                      size: 48,
-                      color: CupertinoColors.black,
-                    ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'assets/branding/app_logo.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    semanticLabel: 'Copy & Paste logo',
                   ),
                 ),
               ),
@@ -84,13 +88,15 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               child: Text(
                 AppConfig.appName,
-                style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle
+                style: CupertinoTheme.of(context)
+                    .textTheme
+                    .navLargeTitleTextStyle
                     .copyWith(
-                  color: CupertinoColors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -1,
-                ),
+                      color: CupertinoColors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1,
+                    ),
               ),
             ),
             const SizedBox(height: 12),

@@ -172,15 +172,16 @@ class AuthServiceImpl implements AuthService {
   @override
   Future<TokenPair> refresh() async {
     try {
-      final storedTokens = await getStoredTokens();
-      if (storedTokens == null) {
+      // Get refresh token directly (even if access token expired)
+      final refreshToken = await _getRefreshToken();
+      if (refreshToken == null) {
         throw Exception('No refresh token available');
       }
 
       final response = await _apiClient.post(
         '/auth/refresh',
         {
-          'refreshToken': storedTokens.refreshToken,
+          'refreshToken': refreshToken,
         },
         withAuth: false,
       );
@@ -193,6 +194,18 @@ class AuthServiceImpl implements AuthService {
     } catch (e) {
       await clearAll();
       throw Exception('Token refresh failed: $e');
+    }
+  }
+
+  Future<String?> _getRefreshToken() async {
+    try {
+      final jsonStr = await _secureStorage.read(key: _tokenKey);
+      if (jsonStr == null) return null;
+
+      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return json['refreshToken'] as String?;
+    } catch (e) {
+      return null;
     }
   }
 

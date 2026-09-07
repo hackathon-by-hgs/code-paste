@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import Network
 import CoreBluetooth
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -28,6 +29,24 @@ import CoreBluetooth
         self?.requestBluetoothPermission(result: result)
       case "requestNotificationPermission":
         self?.requestNotificationPermission(result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    // Setup method channel for clipboard
+    let clipboardChannel = FlutterMethodChannel(
+      name: "com.hgs.copypaste/clipboard",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    clipboardChannel.setMethodCallHandler { (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      switch call.method {
+      case "readClipboard":
+        self.readClipboard(result: result)
+      case "writeClipboard":
+        let args = call.arguments as? [String: Any]
+        self.writeClipboard(args: args, result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -65,6 +84,79 @@ import CoreBluetooth
       DispatchQueue.main.async {
         result(granted)
       }
+    }
+  }
+
+  // MARK: - Clipboard Operations
+  private func readClipboard(result: @escaping FlutterResult) {
+    let pasteboard = UIPasteboard.general
+    var output: [String: Any] = [:]
+
+    // Check for text
+    if let text = pasteboard.string {
+      output["type"] = "text"
+      output["content"] = text
+      result(output)
+      return
+    }
+
+    // Check for images (PNG/JPEG)
+    if let image = pasteboard.image {
+      if let pngData = image.pngData() {
+        let base64 = pngData.base64EncodedString()
+        output["type"] = "image/png"
+        output["content"] = base64
+        result(output)
+        return
+      }
+      if let jpegData = image.jpegData(compressionQuality: 0.9) {
+        let base64 = jpegData.base64EncodedString()
+        output["type"] = "image/jpeg"
+        output["content"] = base64
+        result(output)
+        return
+      }
+    }
+
+    // Empty clipboard
+    result(nil)
+  }
+
+  private func writeClipboard(args: [String: Any]?, result: @escaping FlutterResult) {
+    guard let args = args else {
+      result(FlutterError(code: "INVALID_ARGS", message: "Missing arguments", details: nil))
+      return
+    }
+
+    let pasteboard = UIPasteboard.general
+    let contentType = args["type"] as? String
+    let content = args["content"] as? String
+
+    guard let contentType = contentType, let content = content else {
+      result(FlutterError(code: "INVALID_ARGS", message: "Missing type or content", details: nil))
+      return
+    }
+
+    switch contentType {
+    case "text/plain":
+      pasteboard.string = content
+      result(true)
+    case "image/png":
+      if let data = Data(base64Encoded: content), let image = UIImage(data: data) {
+        pasteboard.image = image
+        result(true)
+      } else {
+        result(FlutterError(code: "DECODE_ERROR", message: "Failed to decode PNG", details: nil))
+      }
+    case "image/jpeg":
+      if let data = Data(base64Encoded: content), let image = UIImage(data: data) {
+        pasteboard.image = image
+        result(true)
+      } else {
+        result(FlutterError(code: "DECODE_ERROR", message: "Failed to decode JPEG", details: nil))
+      }
+    default:
+      result(FlutterError(code: "UNSUPPORTED_TYPE", message: "Unsupported content type: \(contentType)", details: nil))
     }
   }
 }

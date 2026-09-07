@@ -160,7 +160,6 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   @override
   Future<void> dispose() async {
     await stop();
-    await _lanTransport.shutdown();
     await _receivedEventsController.close();
     print('Clipboard sync service disposed');
   }

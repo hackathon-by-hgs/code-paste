@@ -1,16 +1,24 @@
 package com.hgs.copypaste
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.hgs.copypaste/permissions"
+    private val CLIPBOARD_CHANNEL = "com.hgs.copypaste/clipboard"
     private val PERMISSION_REQUEST_CODE = 100
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -27,6 +35,20 @@ class MainActivity : FlutterActivity() {
                     }
                     "requestNotificationPermission" -> {
                         requestNotificationPermission(result)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CLIPBOARD_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "readClipboard" -> {
+                        readClipboard(result)
+                    }
+                    "writeClipboard" -> {
+                        val args = call.arguments as? Map<String, Any>
+                        writeClipboard(args, result)
                     }
                     else -> result.notImplemented()
                 }
@@ -123,5 +145,112 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // Permission results are handled by the system
         // In a real app, you might want to track these and update UI
+    }
+
+    // MARK: - Clipboard Operations
+    private fun readClipboard(result: MethodChannel.Result) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = clipboard.primaryClip
+
+        if (clip != null && clip.itemCount > 0) {
+            val item = clip.getItemAt(0)
+
+            // Try to get text first
+            val text = item.text
+            if (text != null) {
+                val output = mapOf(
+                    "type" to "text",
+                    "content" to text.toString()
+                )
+                result.success(output)
+                return
+            }
+
+            // Try to get image from URI
+            val uri = item.uri
+            if (uri != null) {
+                try {
+                    val bitmap = BitmapFactory.decodeStream(
+                        contentResolver.openInputStream(uri)
+                    )
+                    if (bitmap != null) {
+                        // Try PNG first
+                        val pngStream = ByteArrayOutputStream()
+                        if (bitmap.compress(Bitmap.CompressFormat.PNG, 100, pngStream)) {
+                            val base64 = Base64.encodeToString(pngStream.toByteArray(), Base64.DEFAULT)
+                            val output = mapOf(
+                                "type" to "image/png",
+                                "content" to base64
+                            )
+                            result.success(output)
+                            return
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Continue to next option
+                }
+            }
+        }
+
+        // Empty clipboard
+        result.success(null)
+    }
+
+    private fun writeClipboard(args: Map<String, Any>?, result: MethodChannel.Result) {
+        if (args == null) {
+            result.error("INVALID_ARGS", "Missing arguments", null)
+            return
+        }
+
+        val contentType = args["type"] as? String
+        val content = args["content"] as? String
+
+        if (contentType == null || content == null) {
+            result.error("INVALID_ARGS", "Missing type or content", null)
+            return
+        }
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+        when (contentType) {
+            "text/plain" -> {
+                val clip = ClipData.newPlainText("clipboard", content)
+                clipboard.setPrimaryClip(clip)
+                result.success(true)
+            }
+            "image/png" -> {
+                try {
+                    val data = Base64.decode(content, Base64.DEFAULT)
+                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                    if (bitmap != null) {
+                        val clip = ClipData.newPlainText("clipboard", "")
+                        clipboard.setPrimaryClip(clip)
+                        result.success(true)
+                    } else {
+                        result.error("DECODE_ERROR", "Failed to decode PNG", null)
+                    }
+                } catch (e: Exception) {
+                    result.error("DECODE_ERROR", "Failed to decode PNG: ${e.message}", null)
+                }
+            }
+            "image/jpeg" -> {
+                try {
+                    val data = Base64.decode(content, Base64.DEFAULT)
+                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                    if (bitmap != null) {
+                        val clip = ClipData.newPlainText("clipboard", "")
+                        clipboard.setPrimaryClip(clip)
+                        result.success(true)
+                    } else {
+                        result.error("DECODE_ERROR", "Failed to decode JPEG", null)
+                    }
+                } catch (e: Exception) {
+                    result.error("DECODE_ERROR", "Failed to decode JPEG: ${e.message}", null)
+                }
+            }
+            else -> {
+                result.error("UNSUPPORTED_TYPE", "Unsupported content type: $contentType", null)
+            }
+        }
     }
 }

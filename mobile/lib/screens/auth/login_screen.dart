@@ -80,12 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: CupertinoColors.systemGrey6,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        CupertinoIcons.doc_on_clipboard,
-                        size: 40,
-                        color: CupertinoColors.systemBlue,
-                      ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/branding/app_logo.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      semanticLabel: 'Copy & Paste logo',
                     ),
                   ),
                 ),
@@ -96,38 +97,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: CupertinoTheme.of(context)
                       .textTheme
                       .navLargeTitleTextStyle
-                      .copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      .copyWith(fontSize: 28, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Sync clipboard across devices',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    color: CupertinoColors.systemGrey,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        fontSize: 14,
+                        color: CupertinoColors.systemGrey,
+                      ),
                 ),
                 const SizedBox(height: 40),
                 // Email field
                 Text(
                   'Email',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _emailController,
                   placeholder: 'Enter your email',
                   keyboardType: TextInputType.emailAddress,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -135,21 +133,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password field
                 Text(
                   'Password',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _passwordController,
                   placeholder: 'Enter your password',
                   obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -161,16 +158,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       color: CupertinoColors.destructiveRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: CupertinoColors.destructiveRed,
-                      ),
+                      border: Border.all(color: CupertinoColors.destructiveRed),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 13,
-                        color: CupertinoColors.destructiveRed,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 13,
+                            color: CupertinoColors.destructiveRed,
+                          ),
                     ),
                   ),
                 if (_errorMessage != null) const SizedBox(height: 16),
@@ -212,10 +208,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: Text(
                       "Don't have an account? Sign up",
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 14,
-                        color: CupertinoColors.systemBlue,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 14,
+                            color: CupertinoColors.systemBlue,
+                          ),
                     ),
                   ),
                 ),

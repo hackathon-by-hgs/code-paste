@@ -180,8 +180,9 @@ class HomeProvider extends ChangeNotifier {
       );
 
       // After discovery completes, return to active state
+      // Return to active regardless of whether devices were found
       await Future.delayed(const Duration(seconds: 3));
-      if (_state == AppLifecycleState.scanning && _availableNetworks.isNotEmpty) {
+      if (_state == AppLifecycleState.scanning) {
         _state = AppLifecycleState.active;
         notifyListeners();
       }
@@ -191,7 +192,9 @@ class HomeProvider extends ChangeNotifier {
         details: e.toString(),
         recoverable: true,
       );
-      _state = AppLifecycleState.active;
+      if (_state == AppLifecycleState.scanning) {
+        _state = AppLifecycleState.active;
+      }
       notifyListeners();
     }
   }

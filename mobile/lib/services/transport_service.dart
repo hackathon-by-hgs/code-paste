@@ -54,6 +54,13 @@ class TransportServiceImpl implements TransportService {
     if (_isRunning) return;
 
     try {
+      // Recreate stream controller if it was closed
+      if (_receivedEventsController.isClosed) {
+        _receivedEventsController =
+            StreamController<ClipboardEvent>.broadcast();
+        _setupEventForwarding();
+      }
+
       // Start listening for incoming connections
       await _serverService.start();
 

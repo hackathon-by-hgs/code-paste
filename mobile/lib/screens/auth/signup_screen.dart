@@ -64,14 +64,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Call signup API
       final apiClient = context.read<ApiClient>();
-      await apiClient.post(
-        '/auth/signup',
-        {
-          'email': email,
-          'password': password,
-        },
-        withAuth: false,
-      );
+      await apiClient.post('/auth/signup', {
+        'email': email,
+        'password': password,
+      }, withAuth: false);
 
       if (mounted) {
         context.go('/device-setup');
@@ -107,12 +103,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       color: CupertinoColors.systemGrey6,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        CupertinoIcons.doc_on_clipboard,
-                        size: 40,
-                        color: CupertinoColors.systemBlue,
-                      ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/branding/app_logo.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      semanticLabel: 'Copy & Paste logo',
                     ),
                   ),
                 ),
@@ -122,79 +119,74 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: CupertinoTheme.of(context)
                       .textTheme
                       .navLargeTitleTextStyle
-                      .copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      .copyWith(fontSize: 28, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Create your account',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    color: CupertinoColors.systemGrey,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        fontSize: 14,
+                        color: CupertinoColors.systemGrey,
+                      ),
                 ),
                 const SizedBox(height: 40),
                 Text(
                   'Email',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _emailController,
                   placeholder: 'Enter your email',
                   keyboardType: TextInputType.emailAddress,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Password',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _passwordController,
                   placeholder: 'At least 8 characters',
                   obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Confirm Password',
-                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _confirmPasswordController,
                   placeholder: 'Confirm your password',
                   obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: CupertinoColors.systemGrey4,
-                    ),
+                    border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -205,16 +197,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     decoration: BoxDecoration(
                       color: CupertinoColors.destructiveRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: CupertinoColors.destructiveRed,
-                      ),
+                      border: Border.all(color: CupertinoColors.destructiveRed),
                     ),
                     child: Text(
                       _errorMessage!,
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 13,
-                        color: CupertinoColors.destructiveRed,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 13,
+                            color: CupertinoColors.destructiveRed,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -255,10 +246,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                     child: Text(
                       'Already have an account? Sign in',
-                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                        fontSize: 14,
-                        color: CupertinoColors.systemBlue,
-                      ),
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 14,
+                            color: CupertinoColors.systemBlue,
+                          ),
                     ),
                   ),
                 ),
