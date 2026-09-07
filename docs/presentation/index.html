@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>code-paste — project presentation</title>
+<meta name="description" content="Cross-device clipboard synchronisation. Copy once. It appears where you need it.">
+<style>
+/* ============================================================
+   code-paste — presentation deck
+   Tokens are taken verbatim from docs/DESIGN_SYSTEM.md.
+   Type sizes are a projection scale (see README.md in this folder):
+   same families, weights and tracking rules, sized for a room.
+   ============================================================ */
+
+:root{
+  /* colour primitives — DESIGN_SYSTEM.md section 1 */
+  --blue-50:#EAF2FF;  --blue-100:#D6E4FF; --blue-200:#ADC8FF; --blue-300:#7FA6FB;
+  --blue-400:#4E82F2; --blue-500:#2563EB; --blue-600:#1D4FD8; --blue-900:#132A5E;
+
+  --violet-50:#F3EEFE;  --violet-100:#E7DDFD; --violet-300:#B69BF6;
+  --violet-400:#9A6EF2; --violet-500:#7C3AED; --violet-600:#6B21D4;
+
+  --n-0:#FFFFFF;   --n-25:#FBFCFD; --n-50:#F6F8FA;  --n-100:#EDF0F3;
+  --n-200:#DFE3E8; --n-300:#C7CDD6; --n-400:#9AA3B0; --n-500:#6E7887;
+  --n-600:#545D6B; --n-700:#3D4552; --n-800:#272D38; --n-900:#171C24;
+  --n-950:#0D1117;
+
+  --success-50:#E6F6EF; --success-300:#4FD3A0; --success-500:#12A473; --success-600:#0E8A5F;
+  --warning-50:#FDF3E2; --warning-600:#A66A00;
+  --danger-50:#FDEDEC;  --danger-300:#F58C87;  --danger-500:#E04640; --danger-600:#C7302B;
+
+  /* spacing — 4px grid */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --s10:40px; --s12:48px; --s16:64px; --s20:80px;
+
+  /* radius */
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:12px; --r-full:999px;
+
+  /* elevation */
+  --elev-1:0 1px 2px rgba(16,24,40,.06);
+  --elev-2:0 4px 12px rgba(16,24,40,.08);
+  --elev-3:0 12px 32px rgba(16,24,40,.14);
+
+  /* motion */
+  --fast:140ms; --base:180ms;
+  --ease:cubic-bezier(.2,0,0,1);
+
+  --font:"Inter var",Inter,-apple-system,"Segoe UI Variable Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,monospace;
+
+  --fit:1;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--n-950);
+  font-family:var(--font);
+  color:var(--n-900);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* ---------- deck shell ---------- */
+
+#deck{
+  position:fixed; inset:0 0 56px 0;
+  display:grid; place-items:center;
+}
+
+#stage{
+  width:1280px; height:720px;
+  position:relative;
+  background:var(--n-0);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  box-shadow:var(--elev-3);
+  transform:scale(var(--fit));
+  transform-origin:center center;
+}
+
+.slide{
+  position:absolute; inset:0;
+  padding:72px;
+  display:none;
+  flex-direction:column;
+  background:var(--n-0);
+}
+.slide.is-current{display:flex}
+
+/* dark slides */
+.slide.dark{background:var(--n-950); color:#E8ECF1}
+.slide.dark .eyebrow{color:var(--blue-300)}
+.slide.dark .lead,.slide.dark .muted{color:#A5AFBD}
+.slide.dark .rule{background:#2A3341}
+
+/* ---------- type: projection scale ---------- */
+
+.eyebrow{
+  font-size:13px; line-height:16px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase;
+  color:var(--blue-600); margin:0 0 var(--s5);
+}
+h1{font-size:64px; line-height:70px; font-weight:600; letter-spacing:-.025em; margin:0}
+h2{font-size:44px; line-height:52px; font-weight:600; letter-spacing:-.02em; margin:0 0 var(--s5)}
+h3{font-size:20px; line-height:28px; font-weight:600; letter-spacing:-.005em; margin:0 0 var(--s2)}
+.lead{font-size:24px; line-height:34px; font-weight:400; color:var(--n-600); margin:0; max-width:900px}
+p{font-size:18px; line-height:28px; margin:0 0 var(--s3); color:var(--n-700)}
+.muted{color:var(--n-500)}
+.small{font-size:15px; line-height:22px}
+.mono{font-family:var(--mono); font-variant-ligatures:none}
+b,strong{font-weight:600}
+
+.rule{height:1px; background:var(--n-200); border:0; margin:var(--s6) 0}
+
+/* ---------- layout helpers ---------- */
+
+.head{margin-bottom:var(--s8)}
+.body{flex:1; min-height:0}
+.foot{margin-top:auto; padding-top:var(--s5); font-size:14px; line-height:20px; color:var(--n-500)}
+
+.cols{display:grid; gap:var(--s6)}
+.c2{grid-template-columns:repeat(2,1fr)}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+
+.card{
+  background:var(--n-0);
+  border:1px solid var(--n-200);
+  border-radius:var(--r-md);
+  padding:var(--s5);
+  box-shadow:var(--elev-1);
+}
+.card.flat{box-shadow:none; background:var(--n-50)}
+.card .num{
+  font-size:13px; font-weight:600; letter-spacing:.06em;
+  color:var(--blue-600); text-transform:uppercase; margin-bottom:var(--s2);
+}
+
+ul.ticks{list-style:none; margin:0; padding:0}
+ul.ticks li{
+  position:relative; padding-left:30px; margin-bottom:var(--s3);
+  font-size:18px; line-height:26px; color:var(--n-700);
+}
+ul.ticks li::before{
+  content:""; position:absolute; left:0; top:9px;
+  width:8px; height:8px; border-radius:var(--r-full); background:var(--blue-500);
+}
+ul.ticks.good li::before{background:var(--success-500)}
+ul.ticks.bad li::before{background:var(--danger-500)}
+ul.ticks li:last-child{margin-bottom:0}
+
+/* ---------- image placeholder ---------- */
+
+.ph{
+  margin:0;
+  border:2px dashed var(--n-300);
+  border-radius:var(--r-md);
+  background-color:var(--n-50);
+  background-image:repeating-linear-gradient(
+    45deg, rgba(154,163,176,.07) 0 8px, transparent 8px 16px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:var(--s3);
+  padding:var(--s5);
+  height:var(--ph-h,300px);
+  text-align:center;
+}
+.ph svg{color:var(--n-400); flex:none}
+.ph figcaption{display:block}
+.ph .ph-title{
+  display:block; font-size:15px; line-height:20px; font-weight:600; color:var(--n-600);
+}
+.ph .ph-spec{
+  display:block; margin-top:var(--s1);
+  font-family:var(--mono); font-size:12px; line-height:18px; color:var(--n-500);
+}
+
+/* ---------- misc components ---------- */
+
+.chip{
+  display:inline-flex; align-items:center; gap:var(--s2);
+  height:26px; padding:0 10px;
+  border-radius:var(--r-full);
+  font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+}
+.chip .dot{width:6px; height:6px; border-radius:var(--r-full); background:currentColor; flex:none}
+.chip.synced{background:var(--success-50); color:var(--success-600)}
+.chip.paused{background:var(--warning-50); color:var(--warning-600)}
+.chip.offline{background:var(--n-100); color:var(--n-500)}
+.chip.revoked{background:var(--danger-50); color:var(--danger-600)}
+.chip.live{background:var(--violet-50); color:var(--violet-600)}
+
+.swatch{border-radius:var(--r-md); overflow:hidden; border:1px solid var(--n-200)}
+.swatch .fill{height:76px}
+.swatch .meta{padding:var(--s3) var(--s4); background:var(--n-0)}
+.swatch .name{font-size:15px; font-weight:600; line-height:20px}
+.swatch .hex{font-family:var(--mono); font-size:12px; color:var(--n-500); line-height:18px}
+.swatch .use{font-size:13px; line-height:19px; color:var(--n-600); margin-top:var(--s1)}
+
+.code{
+  font-family:var(--mono); font-size:16px; line-height:26px;
+  background:var(--n-50); border:1px solid var(--n-200); border-left:3px solid var(--n-300);
+  border-radius:var(--r-sm); padding:var(--s4) var(--s5);
+  white-space:pre; overflow:hidden; color:var(--n-800);
+}
+.code.bad{background:var(--danger-50); border-color:#F6D3D1; border-left-color:var(--danger-500)}
+.code.good{background:var(--success-50); border-color:#C6E9D9; border-left-color:var(--success-500)}
+
+.stat .n{
+  font-size:52px; line-height:56px; font-weight:600; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; color:var(--n-900);
+}
+.stat .l{font-size:15px; line-height:21px; color:var(--n-600); margin-top:var(--s2)}
+
+.banner{
+  display:flex; align-items:center; gap:var(--s4);
+  background:var(--violet-50);
+  border:1px solid var(--violet-100);
+  border-left:3px solid var(--violet-500);
+  border-radius:var(--r-md);
+  padding:var(--s4) var(--s5);
+}
+.banner .pulse{
+  width:10px; height:10px; border-radius:var(--r-full);
+  background:var(--violet-500); flex:none;
+  animation:pulse 1600ms ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.banner .txt{font-size:17px; line-height:24px; font-weight:600; color:var(--violet-600)}
+.banner .stop{
+  margin-left:auto; font-size:15px; font-weight:600; color:var(--danger-600);
+  border:1px solid transparent; padding:6px 12px; border-radius:var(--r-sm);
+}
+
+.steps{display:grid; grid-template-columns:1fr 40px 1fr 40px 1fr; align-items:center; gap:0}
+.step{
+  background:var(--n-50); border:1px solid var(--n-200); border-radius:var(--r-md);
+  padding:var(--s5); height:100%;
+}
+.step .k{
+  font-family:var(--mono); font-size:12px; color:var(--blue-600);
+  letter-spacing:.06em; margin-bottom:var(--s2);
+}
+.arrow{display:grid; place-items:center; color:var(--n-300)}
+
+.timeline{display:grid; grid-template-columns:repeat(5,1fr); gap:var(--s4)}
+.phase{border-top:3px solid var(--n-200); padding-top:var(--s4)}
+.phase.now{border-top-color:var(--blue-500)}
+.phase.next{border-top-color:var(--blue-200)}
+.phase .p{
+  font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--n-500); margin-bottom:var(--s2);
+}
+.phase.now .p{color:var(--blue-600)}
+.phase h3{font-size:17px; line-height:24px}
+.phase p{font-size:14px; line-height:21px; color:var(--n-600); margin:0}
+
+.diagram{width:100%; height:auto; display:block}
+.diagram text{font-family:var(--font)}
+
+.kicker{
+  display:inline-block; padding:6px 12px; border-radius:var(--r-full);
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+  font-size:13px; font-weight:600; letter-spacing:.04em; color:#A5AFBD;
+}
+
+.grad{
+  height:4px; width:180px; border-radius:var(--r-full);
+  background:linear-gradient(90deg,var(--blue-500),var(--violet-500));
+}
+
+/* ---------- chrome ---------- */
+
+#chrome{
+  position:fixed; left:0; right:0; bottom:0; height:56px;
+  display:flex; align-items:center; gap:var(--s4);
+  padding:0 var(--s6);
+  background:#11161F; border-top:1px solid #222B37;
+  color:#A5AFBD; font-size:13px;
+}
+#chrome button{
+  font:inherit; color:#C7CDD6; background:#1C2430;
+  border:1px solid #2A3341; border-radius:var(--r-sm);
+  height:32px; min-width:36px; padding:0 10px; cursor:pointer;
+  transition:background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+#chrome button:hover{background:#232D3B; color:#E8ECF1}
+#chrome button:focus-visible{outline:2px solid var(--blue-400); outline-offset:2px}
+#counter{font-variant-numeric:tabular-nums; min-width:64px}
+#title{color:#6E7887; margin-left:auto; white-space:nowrap}
+#bar{position:fixed; left:0; bottom:56px; height:2px; background:var(--blue-500); width:0;
+     transition:width var(--base) var(--ease); z-index:2}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:0ms !important; transition-duration:0ms !important}
+  .banner .pulse{opacity:1}
+}
+
+/* ---------- print / PDF export ---------- */
+
+@page{size:1280px 720px; margin:0}
+@media print{
+  body{background:#fff; overflow:visible}
+  #chrome,#bar{display:none !important}
+  #deck{position:static; inset:auto; display:block}
+  #stage{
+    width:1280px; height:auto; transform:none;
+    border-radius:0; box-shadow:none; overflow:visible;
+  }
+  .slide{
+    display:flex !important; position:relative; inset:auto;
+    width:1280px; height:720px;
+    break-after:page; page-break-after:always;
+  }
+  .slide:last-child{break-after:auto; page-break-after:auto}
+  .slide.dark{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div id="deck">
+  <main id="stage" aria-live="polite">
+
+  <!-- 1 ─ title ------------------------------------------------------- -->
+  <section class="slide dark is-current" aria-label="Slide 1: code-paste">
+    <div class="head"><span class="kicker">Hackathon by HGS · September 2026</span></div>
+    <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="grad" style="margin-bottom:40px"></div>
+      <h1>code-paste</h1>
+      <p class="lead" style="margin-top:24px;font-size:28px;line-height:40px">
+        Copy once. It appears where you need it.
+      </p>
+      <p class="muted" style="margin-top:32px;max-width:760px;font-size:18px">
+        A cross-device clipboard that syncs your own devices over the local network,
+        end-to-end encrypted, with sharing that is explicit and temporary.
+      </p>
+    </div>
+    <div class="foot" style="color:#6E7887;display:flex;gap:24px">
+      <span>Product &amp; design review</span>
+      <span class="mono">protocol-v1.0.0</span>
+      <span style="margin-left:auto">→ to advance</span>
+    </div>
+  </section>
+
+  <!-- 2 ─ problem ----------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 2: The problem">
+    <div class="head">
+      <p class="eyebrow">The problem</p>
+      <h2>Moving text between your own devices is still absurd.</h2>
+      <p class="lead">You already copied it. The computer already has it. And yet.</p>
+    </div>
+    <div class="body">
+      <div class="cols c3">
+        <div class="card flat">
+          <div class="num">Workaround 01</div>
+          <h3>Email it to yourself</h3>
+          <p class="small muted">Open mail, compose, paste, send, switch device, open mail, copy again. Seven steps to move eleven characters.</p>
+        </div>
+        <div class="card flat">
+          <div class="num">Workaround 02</div>
+          <h3>Message yourself</h3>
+          <p class="small muted">A chat thread with one participant, now permanently full of one-time passcodes and half-finished links.</p>
+        </div>
+        <div class="card flat">
+          <div class="num">Workaround 03</div>
+          <h3>A notes app in the middle</h3>
+          <p class="small muted">Sync delay, a document you never wanted, and your clipboard content stored on someone else's server forever.</p>
+        </div>
+      </div>
+      <hr class="rule">
+      <p style="font-size:22px;line-height:32px;color:var(--n-800);margin:0">
+        Every one of these is slower than the copy the user already made — and two of them
+        keep a permanent record of something that was meant to last five seconds.
+      </p>
+    </div>
+    <div class="foot">code-paste — project presentation</div>
+  </section>
+
+  <!-- 3 ─ promise ----------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 3: The promise">
+    <div class="head">
+      <p class="eyebrow">The promise</p>
+      <h2>Three steps, and two of them already existed.</h2>
+    </div>
+    <div class="body">
+      <div class="steps">
+        <div class="step">
+          <div class="k">01</div>
+          <h3>Copy, normally</h3>
+          <p class="small muted">Cmd&nbsp;+&nbsp;C on the laptop. No app to open, no button to press, nothing new to learn.</p>
+        </div>
+        <div class="arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+        <div class="step">
+          <div class="k">02</div>
+          <h3>It travels directly</h3>
+          <p class="small muted">Encrypted, over the local network, to the devices you registered. Typically under two seconds.</p>
+        </div>
+        <div class="arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+        <div class="step">
+          <div class="k">03</div>
+          <h3>Paste, normally</h3>
+          <p class="small muted">Cmd&nbsp;+&nbsp;V on the phone. The clipboard is simply already correct.</p>
+        </div>
+      </div>
+      <hr class="rule">
+      <div class="cols c3">
+        <div><h3>Set up once</h3><p class="small muted">Sign in, install the agent, approve the device. There is no second configuration screen.</p></div>
+        <div><h3>Pause instantly</h3><p class="small muted">One switch on the device card. Sync stops in both directions, immediately.</p></div>
+        <div><h3>Nothing is kept</h3><p class="small muted">Clipboard content is not stored on our servers, and local copies expire quickly.</p></div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation</div>
+  </section>
+
+  <!-- 4 ─ product shots ------------------------------------------------ -->
+  <section class="slide" aria-label="Slide 4: What it looks like">
+    <div class="head">
+      <p class="eyebrow">What it looks like</p>
+      <h2>Three surfaces, one product.</h2>
+      <p class="lead">The agent does the work. The web app manages trust. Mobile uses what the OS actually allows.</p>
+    </div>
+    <div class="body">
+      <div class="cols c3">
+        <figure class="ph" style="--ph-h:280px">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+          <figcaption>
+            <span class="ph-title">Desktop agent — synced state</span>
+            <span class="ph-spec">720 × 960 px @2x · PNG<br>assets/agent-synced.png</span>
+          </figcaption>
+        </figure>
+        <figure class="ph" style="--ph-h:280px">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20M7 14h6"/></svg>
+          <figcaption>
+            <span class="ph-title">Web app — device list</span>
+            <span class="ph-spec">2240 × 1400 px @2x · PNG<br>assets/web-devices.png</span>
+          </figcaption>
+        </figure>
+        <figure class="ph" style="--ph-h:280px">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+          <figcaption>
+            <span class="ph-title">Mobile — share sheet</span>
+            <span class="ph-spec">828 × 1792 px @3x · PNG<br>assets/mobile-share.png</span>
+          </figcaption>
+        </figure>
+      </div>
+      <hr class="rule">
+      <p class="small muted" style="margin:0">
+        Placeholders above are sized to the final crop. Drop the files into
+        <span class="mono">docs/presentation/assets/</span> using the filenames shown and replace the
+        <span class="mono">&lt;figure class="ph"&gt;</span> block with an <span class="mono">&lt;img&gt;</span>.
+      </p>
+    </div>
+    <div class="foot">code-paste — project presentation</div>
+  </section>
+
+  <!-- 5 ─ constraint --------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 5: The constraint">
+    <div class="head">
+      <p class="eyebrow">The constraint that shaped the product</p>
+      <h2>A browser tab cannot watch your clipboard.</h2>
+      <p class="lead">This is not a limitation we can engineer around. It is the security model of every operating system, working correctly.</p>
+    </div>
+    <div class="body">
+      <div class="cols c2">
+        <div class="card">
+          <h3 style="color:var(--danger-600)">What people assume</h3>
+          <ul class="ticks bad">
+            <li>“Just make it a website.”</li>
+            <li>A background tab polls the clipboard forever.</li>
+            <li>Mobile watches the clipboard invisibly.</li>
+            <li>Permissions are asked once and never again.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--success-600)">What the OS actually allows</h3>
+          <ul class="ticks good">
+            <li>A native background agent, installed deliberately.</li>
+            <li>Clipboard reads tied to focus and permission.</li>
+            <li>Mobile: user-triggered share and paste actions.</li>
+            <li>The web app manages account, devices and sharing.</li>
+          </ul>
+        </div>
+      </div>
+      <hr class="rule">
+      <p style="margin:0"><b>ADR-002 — Native background agent.</b>
+        <span class="muted">Never fake background behaviour with a browser tab or a hidden polling loop.
+        Where a platform cannot do something silently, we ship the simplest supported alternative instead.</span></p>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/ADR-002-NATIVE-BACKGROUND-AGENT.md</div>
+  </section>
+
+  <!-- 6 ─ architecture -------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 6: Architecture">
+    <div class="head">
+      <p class="eyebrow">Architecture</p>
+      <h2>The server knows who you are. It never sees what you copied.</h2>
+    </div>
+    <div class="body">
+      <svg class="diagram" viewBox="0 0 1136 396" role="img" aria-label="Control plane handles identity and authorisation over HTTPS. Two registered devices exchange clipboard data directly over an encrypted local network channel. A relay is a future addition.">
+        <!-- control plane -->
+        <rect x="393" y="0" width="350" height="88" rx="8" fill="#EAF2FF" stroke="#ADC8FF"/>
+        <text x="568" y="36" text-anchor="middle" font-size="19" font-weight="600" fill="#132A5E">Control plane</text>
+        <text x="568" y="62" text-anchor="middle" font-size="14" fill="#1D4FD8">Identity · Devices · Keys · Authorisation</text>
+
+        <!-- relay, future -->
+        <rect x="428" y="132" width="280" height="60" rx="8" fill="#FBFCFD" stroke="#C7CDD6" stroke-dasharray="6 5"/>
+        <text x="568" y="160" text-anchor="middle" font-size="15" font-weight="600" fill="#6E7887">Relay</text>
+        <text x="568" y="180" text-anchor="middle" font-size="13" fill="#9AA3B0">future — remote transport</text>
+
+        <!-- devices -->
+        <rect x="40" y="238" width="300" height="112" rx="8" fill="#FFFFFF" stroke="#DFE3E8"/>
+        <text x="64" y="272" font-size="18" font-weight="600" fill="#171C24">Desktop agent</text>
+        <text x="64" y="298" font-size="14" fill="#545D6B">Registered device · your account</text>
+        <text x="64" y="324" font-size="13" fill="#6E7887" font-family="ui-monospace, monospace">OS clipboard ↔ agent</text>
+
+        <rect x="796" y="238" width="300" height="112" rx="8" fill="#FFFFFF" stroke="#DFE3E8"/>
+        <text x="820" y="272" font-size="18" font-weight="600" fill="#171C24">Second device</text>
+        <text x="820" y="298" font-size="14" fill="#545D6B">Registered device · your account</text>
+        <text x="820" y="324" font-size="13" fill="#6E7887" font-family="ui-monospace, monospace">agent ↔ OS clipboard</text>
+
+        <!-- control lines -->
+        <path d="M190 238 L470 88" stroke="#C7CDD6" stroke-width="1.5" stroke-dasharray="6 5" fill="none"/>
+        <path d="M946 238 L666 88" stroke="#C7CDD6" stroke-width="1.5" stroke-dasharray="6 5" fill="none"/>
+        <text x="238" y="168" font-size="13" fill="#6E7887" transform="rotate(-28 238 168)">HTTPS · identity only</text>
+        <text x="898" y="168" font-size="13" fill="#6E7887" text-anchor="end" transform="rotate(28 898 168)">HTTPS · identity only</text>
+
+        <!-- lan channel -->
+        <path d="M340 294 L796 294" stroke="#2563EB" stroke-width="3" fill="none"/>
+        <circle cx="568" cy="294" r="20" fill="#EAF2FF" stroke="#2563EB" stroke-width="2"/>
+        <path d="M562 293 v-4 a6 6 0 0 1 12 0 v4" stroke="#1D4FD8" stroke-width="1.6" fill="none"/>
+        <rect x="561" y="293" width="14" height="10" rx="2" fill="#1D4FD8"/>
+        <text x="568" y="262" text-anchor="middle" font-size="15" font-weight="600" fill="#1D4FD8">Encrypted LAN channel</text>
+        <text x="568" y="344" text-anchor="middle" font-size="13" fill="#545D6B">clipboard payloads travel here, and only here</text>
+
+        <!-- note -->
+        <text x="568" y="386" text-anchor="middle" font-size="15" fill="#171C24">
+          Clipboard contents never pass through the control plane on the local path.
+        </text>
+      </svg>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/ADR-001-LAN-FIRST.md</div>
+  </section>
+
+  <!-- 7 ─ security ----------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 7: Discovery is not authorisation">
+    <div class="head">
+      <p class="eyebrow">The security position</p>
+      <h2>Discovery is not authorisation.</h2>
+      <p class="lead">Being on the same Wi-Fi tells us a device exists. It tells us nothing about whether it may read your clipboard.</p>
+    </div>
+    <div class="body">
+      <div class="cols c2">
+        <div>
+          <h3 style="color:var(--danger-600)">What we refuse to build</h3>
+          <div class="code bad">if sameSubnet:
+    sendClipboard()</div>
+          <p class="small muted" style="margin-top:12px">Trivial to snoop. No identity. No revocation. This is the design most LAN tools ship.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--success-600)">What we require instead</h3>
+          <div class="code good">if authenticated
+and deviceIsRegistered
+and deviceIsAuthorizedForSession
+and peerIdentityIsVerified:
+    sendClipboard()</div>
+        </div>
+      </div>
+      <hr class="rule">
+      <div class="cols c4">
+        <div><h3>Every device has a key</h3><p class="small muted">Ed25519. The private half never leaves the device, and is never logged.</p></div>
+        <div><h3>Peers prove identity</h3><p class="small muted">A discovered device must demonstrate possession of its key before any payload moves.</p></div>
+        <div><h3>Revocation is immediate</h3><p class="small muted">A removed device stops receiving. This is a tested behaviour, not a promise.</p></div>
+        <div><h3>Hostile until proven</h3><p class="small muted">Every discovery response and every message is treated as untrusted input.</p></div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/SECURITY.md</div>
+  </section>
+
+  <!-- 8 ─ sharing ------------------------------------------------------ -->
+  <section class="slide" aria-label="Slide 8: Sharing">
+    <div class="head">
+      <p class="eyebrow">Sharing with other people</p>
+      <h2>Explicit, temporary, and impossible to forget about.</h2>
+    </div>
+    <div class="body">
+      <div class="banner" style="margin-bottom:28px">
+        <span class="pulse" aria-hidden="true"></span>
+        <span class="txt">Sharing with 2 people · ends in 14:32</span>
+        <span class="stop">Stop sharing</span>
+      </div>
+      <div class="cols c3">
+        <div class="card flat">
+          <div class="num">Rule 01</div>
+          <h3>Membership is explicit</h3>
+          <p class="small muted">A session has named members with roles. Nobody joins by being nearby.</p>
+        </div>
+        <div class="card flat">
+          <div class="num">Rule 02</div>
+          <h3>Sessions expire</h3>
+          <p class="small muted">Short-lived by construction. Temporary sharing is actually temporary.</p>
+        </div>
+        <div class="card flat">
+          <div class="num">Rule 03</div>
+          <h3>The state is always visible</h3>
+          <p class="small muted">The banner cannot be dismissed, and Stop sharing is always one click away.</p>
+        </div>
+      </div>
+      <hr class="rule">
+      <p style="margin:0">
+        <b>Violet is reserved.</b>
+        <span class="muted">In this product, violet means one thing only: someone outside your account can
+        currently receive your clipboard. It is never used decoratively, so the signal cannot be diluted.</span>
+      </p>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/DESIGN_SYSTEM.md §8.2</div>
+  </section>
+
+  <!-- 9 ─ design system ------------------------------------------------ -->
+  <section class="slide" aria-label="Slide 9: Design system">
+    <div class="head">
+      <p class="eyebrow">Design system</p>
+      <h2>Colour carries the security model.</h2>
+      <p class="lead">The hard problem in this product is not aesthetics. It is legibility of trust.</p>
+    </div>
+    <div class="body">
+      <div class="cols c3" style="margin-bottom:28px">
+        <div class="swatch">
+          <div class="fill" style="background:var(--blue-500)"></div>
+          <div class="meta">
+            <div class="name">Blue — your devices</div>
+            <div class="hex">#2563EB</div>
+            <div class="use">Product chrome and every normal interaction.</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="fill" style="background:var(--violet-500)"></div>
+          <div class="meta">
+            <div class="name">Violet — others can see this</div>
+            <div class="hex">#7C3AED</div>
+            <div class="use">Only while a share session is live. Never decorative.</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="fill" style="background:var(--danger-500)"></div>
+          <div class="meta">
+            <div class="name">Red — irreversible</div>
+            <div class="hex">#E04640</div>
+            <div class="use">Revoke, remove, end session. Not for form validation.</div>
+          </div>
+        </div>
+      </div>
+      <div class="cols c2">
+        <div>
+          <h3>One vocabulary, three clients</h3>
+          <p class="small muted" style="margin-bottom:14px">Web, desktop and mobile render the same backend state identically — same colour, icon, label and sub-label.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <span class="chip synced"><span class="dot"></span>Synced</span>
+            <span class="chip paused"><span class="dot"></span>Paused</span>
+            <span class="chip offline"><span class="dot"></span>Offline</span>
+            <span class="chip revoked"><span class="dot"></span>Revoked</span>
+            <span class="chip live"><span class="dot"></span>Live</span>
+          </div>
+        </div>
+        <div>
+          <h3>Rules that block review</h3>
+          <ul class="ticks small" style="font-size:15px">
+            <li style="font-size:15px;line-height:22px">Green never means “same Wi-Fi” — only authenticated and authorised.</li>
+            <li style="font-size:15px;line-height:22px">Never colour alone: every status carries an icon and a label.</li>
+            <li style="font-size:15px;line-height:22px">The security signal must survive reduced motion.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/DESIGN_SYSTEM.md</div>
+  </section>
+
+  <!-- 10 ─ privacy ----------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 10: Privacy">
+    <div class="head">
+      <p class="eyebrow">Privacy</p>
+      <h2>Clipboard content is sensitive by default.</h2>
+      <p class="lead">It contains passwords, one-time codes, addresses and account numbers. We designed as if it always does.</p>
+    </div>
+    <div class="body">
+      <div class="cols c2">
+        <div class="card">
+          <h3 style="color:var(--success-600)">What we log</h3>
+          <div class="code good" style="font-size:15px;line-height:24px">device connected
+peer authentication failed
+payload rejected: too_large
+sync latency: 142ms</div>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--danger-600)">What never exists anywhere</h3>
+          <div class="code bad" style="font-size:15px;line-height:24px">clipboard = "password123"
+image = &lt;raw bytes&gt;
+token = "..."</div>
+        </div>
+      </div>
+      <hr class="rule">
+      <div class="cols c4">
+        <div><h3>No cloud archive</h3><p class="small muted">Clipboard history is not a server-side product feature in the MVP.</p></div>
+        <div><h3>Previews are truncated</h3><p class="small muted">140 characters, one line. Images show as blurred thumbnails with dimensions.</p></div>
+        <div><h3>Secrets stay masked</h3><p class="small muted">Content shaped like a key or token is masked until deliberately revealed.</p></div>
+        <div><h3>Not in notifications</h3><p class="small muted">“Text copied from MacBook Pro” — never the text itself.</p></div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/SECURITY.md</div>
+  </section>
+
+  <!-- 11 ─ status ------------------------------------------------------ -->
+  <section class="slide" aria-label="Slide 11: Where the project stands">
+    <div class="head">
+      <p class="eyebrow">Where the project stands today</p>
+      <h2>The contract is finished. The code is next.</h2>
+      <p class="lead">We froze the protocol, the API and the design language before writing a client, so five people can build in parallel without colliding.</p>
+    </div>
+    <div class="body">
+      <div class="cols c4" style="margin-bottom:28px">
+        <div class="stat"><div class="n">28</div><div class="l">conformance vectors<br>6 must accept · 22 must reject</div></div>
+        <div class="stat"><div class="n">19</div><div class="l">API endpoints specified<br>in OpenAPI</div></div>
+        <div class="stat"><div class="n">8</div><div class="l">architecture decision<br>records</div></div>
+        <div class="stat"><div class="n">4,788</div><div class="l">lines of specification<br>and contract</div></div>
+      </div>
+      <hr class="rule">
+      <div class="cols c2">
+        <div>
+          <h3>Frozen and pinned</h3>
+          <p class="small muted">Five JSON schemas and the event envelope are tagged
+            <span class="mono">protocol-v1.0.0</span>. Every client pins that tag and fails its build
+            if it accepts a vector it should reject.</p>
+        </div>
+        <div>
+          <h3>Honest status</h3>
+          <p class="small muted">There is no product code yet. What exists is the specification, the
+            contracts, the security model and the design system — deliberately, and in that order.</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation · contracts/VERSION</div>
+  </section>
+
+  <!-- 12 ─ roadmap ----------------------------------------------------- -->
+  <section class="slide" aria-label="Slide 12: Roadmap">
+    <div class="head">
+      <p class="eyebrow">Roadmap</p>
+      <h2>Each phase is independently testable.</h2>
+    </div>
+    <div class="body">
+      <div class="timeline">
+        <div class="phase now">
+          <div class="p">Phase 1 · now</div>
+          <h3>Protocol</h3>
+          <p>Domain types, clipboard watcher, local loopback sync, tests.</p>
+        </div>
+        <div class="phase next">
+          <div class="p">Phase 2</div>
+          <h3>Two devices</h3>
+          <p>LAN discovery, authenticated peer connection, security tests.</p>
+        </div>
+        <div class="phase">
+          <div class="p">Phase 3</div>
+          <h3>Account</h3>
+          <p>Registration, device management, the web application.</p>
+        </div>
+        <div class="phase">
+          <div class="p">Phase 4</div>
+          <h3>Sharing</h3>
+          <p>Share sessions, mobile integration, UX hardening.</p>
+        </div>
+        <div class="phase">
+          <div class="p">Phase 5</div>
+          <h3>Remote</h3>
+          <p>Transport abstraction, optional relay for devices apart.</p>
+        </div>
+      </div>
+      <hr class="rule">
+      <div class="cols c2">
+        <div><h3>Why this order</h3><p class="small muted">The local experience has to be reliable before a remote path is worth building. Phase 5 changes the transport, not the event format — that is what the abstraction buys us.</p></div>
+        <div><h3>What gates a phase</h3><p class="small muted">Tests pass, security cases covered, contracts unchanged or versioned, handoff written. A phase is not done because it compiles.</p></div>
+      </div>
+    </div>
+    <div class="foot">code-paste — project presentation · docs/SYSTEM_DESIGN.md §24</div>
+  </section>
+
+  <!-- 13 ─ close ------------------------------------------------------- -->
+  <section class="slide dark" aria-label="Slide 13: Close">
+    <div class="head"><p class="eyebrow">What we need from you</p></div>
+    <div class="body" style="display:grid;grid-template-columns:1.35fr .65fr;gap:56px;align-items:center">
+      <div>
+        <h1 style="font-size:52px;line-height:60px">Copy once.<br>It appears where you need it.</h1>
+        <div class="grad" style="margin:32px 0"></div>
+        <ul class="ticks" style="margin-bottom:8px">
+          <li style="color:#E8ECF1">Sign-off on reserving violet for live sharing, product-wide.</li>
+          <li style="color:#E8ECF1">A decision on secret masking — it is client engineering, not styling.</li>
+          <li style="color:#E8ECF1">Confirmation that the desktop agent stays inside one 360 × 480 window.</li>
+        </ul>
+      </div>
+      <figure class="ph" style="--ph-h:300px;border-color:#2A3341;background-color:#151B23;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 8px,transparent 8px 16px)">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 19h2v2h-2z"/></svg>
+        <figcaption>
+          <span class="ph-title" style="color:#A5AFBD">QR — repository</span>
+          <span class="ph-spec" style="color:#6E7887">600 × 600 px · SVG<br>assets/qr-repo.svg</span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="foot" style="color:#6E7887;display:flex;gap:24px">
+      <span class="mono">github.com/hackathon-by-hgs/code-paste</span>
+      <span style="margin-left:auto">Thank you</span>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<div id="bar" aria-hidden="true"></div>
+
+<nav id="chrome" aria-label="Slide navigation">
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <span id="counter" aria-live="off">1 / 13</span>
+  <button type="button" id="full" aria-label="Toggle fullscreen">Fullscreen</button>
+  <button type="button" id="print" aria-label="Print or export to PDF">Export PDF</button>
+  <span id="title">code-paste — project presentation</span>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+
+  var stage    = document.getElementById("stage");
+  var slides   = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var counter  = document.getElementById("counter");
+  var bar      = document.getElementById("bar");
+  var current  = 0;
+
+  function fit() {
+    var pad = 48;
+    var w = (window.innerWidth  - pad) / 1280;
+    var h = (window.innerHeight - 56 - pad) / 720;
+    var scale = Math.min(w, h);
+    if (!isFinite(scale) || scale <= 0) { scale = 1; }
+    stage.style.setProperty("--fit", scale);
+  }
+
+  function show(n, updateHash) {
+    if (n < 0) { n = 0; }
+    if (n > slides.length - 1) { n = slides.length - 1; }
+    current = n;
+    for (var i = 0; i < slides.length; i++) {
+      var on = (i === n);
+      slides[i].classList.toggle("is-current", on);
+      slides[i].setAttribute("aria-hidden", on ? "false" : "true");
+    }
+    counter.textContent = (n + 1) + " / " + slides.length;
+    bar.style.width = (((n + 1) / slides.length) * 100) + "%";
+    if (updateHash !== false) {
+      var target = "#" + (n + 1);
+      if (window.location.hash !== target) {
+        window.history.replaceState(null, "", target);
+      }
+    }
+  }
+
+  function fromHash() {
+    var raw = window.location.hash.replace("#", "");
+    var n = parseInt(raw, 10);
+    return (isNaN(n) || n < 1) ? 0 : n - 1;
+  }
+
+  document.getElementById("prev").addEventListener("click", function () { show(current - 1); });
+  document.getElementById("next").addEventListener("click", function () { show(current + 1); });
+  document.getElementById("print").addEventListener("click", function () { window.print(); });
+
+  document.getElementById("full").addEventListener("click", function () {
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) { document.exitFullscreen(); }
+      } else if (document.documentElement.requestFullscreen) {
+        var p = document.documentElement.requestFullscreen();
+        if (p && typeof p.catch === "function") { p.catch(function () {}); }
+      }
+    } catch (e) { /* fullscreen unavailable — navigation still works */ }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) { return; }
+    var k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " " || k === "Spacebar") {
+      e.preventDefault(); show(current + 1);
+    } else if (k === "ArrowLeft" || k === "PageUp") {
+      e.preventDefault(); show(current - 1);
+    } else if (k === "Home") {
+      e.preventDefault(); show(0);
+    } else if (k === "End") {
+      e.preventDefault(); show(slides.length - 1);
+    } else if (k === "f" || k === "F") {
+      document.getElementById("full").click();
+    }
+  });
+
+  window.addEventListener("hashchange", function () { show(fromHash(), false); });
+  window.addEventListener("resize", fit);
+
+  fit();
+  show(fromHash());
+}());
+</script>
+</body>
+</html>
