@@ -47,8 +47,8 @@ against without discovering missing contracts later — and close the backend-ow
 
 ## Files changed
 
-Everything under `backend/`, plus `.github/workflows/ci.yml`, `.env.example`, `CONTRACTS_VERSION`,
-`CLAUDE.md`, `README.md` and this file at the branch root.
+Everything under `backend/`, plus `.github/workflows/backend-ci.yml`, `.env.example`,
+`CONTRACTS_VERSION`, `CLAUDE.md`, `README.md` and this file at the branch root.
 
 ## Architecture decisions
 
@@ -85,15 +85,27 @@ npm run build
 > dist/main.js
 
 npm run test:all
-Test Suites: 20 passed, 20 total
-Tests:       241 passed, 241 total
-Time:        46.7 s, 5 projects
+Test Suites: 21 passed, 21 total
+Tests:       245 passed, 245 total
+Time:        57.3 s, 5 projects
 ```
 
 Breakdown: unit · contract conformance · integration · security · e2e.
 
-**Verified against real PostgreSQL 18.3** (PGlite, in process — foreign keys, unique indexes,
-cascades and transaction rollback all confirmed enforced).
+CI run [`34168080823`](https://github.com/hackathon-by-hgs/code-paste/actions/runs/34168080823) —
+**all five jobs green**:
+
+```
+✓ format · lint · typecheck · build
+✓ tests (pglite)
+✓ tests (postgres)
+✓ dependency audit
+✓ no secrets committed
+```
+
+**Verified against real PostgreSQL both ways**: in-process PGlite (PostgreSQL 18.3 — foreign keys,
+unique indexes, cascades and transaction rollback all confirmed enforced) and a real PostgreSQL 17
+service container in CI, running the identical suites.
 
 ---
 
@@ -139,16 +151,28 @@ scans every table as text for a sentinel, so a future relay or debug column woul
    `HttpException`, so hostile input produced an "unexpected error" instead of a deterministic 413.
 3. **Revoked-device refresh reported `unauthenticated` instead of `device_revoked`**, losing the
    signal that tells a client to wipe its credentials.
+4. **`drizzle-orm` < 0.45.2 carries a HIGH advisory** — GHSA-gpj5-g38j-94v9, SQL injection via
+   improperly escaped identifiers. Caught by the `dependency audit` CI job on its first run;
+   upgraded to 0.45.2 with no regressions. Flagged on `main` for any other domain adopting Drizzle.
+5. **An empty environment variable was treated as invalid rather than unset**, so `DATABASE_URL=''`
+   made the process refuse to start. "Set but empty" is the normal result of a shell default or a
+   CI expression evaluating to `''` — and is exactly how the pglite CI leg failed. `loadConfig` now
+   coerces empty and whitespace-only values to `undefined`.
+6. **The `no secrets committed` job flagged its own fixture** — `redaction.spec.ts` contains a PEM
+   header precisely to prove the scrubber removes it. Spec files are now excluded; a check that
+   cries wolf on its own test is a check somebody deletes.
 
 ---
 
 ## Known limitations
 
-1. **Real-PostgreSQL execution is unverified on this machine.** Docker was not available, so every
-   test ran on PGlite. PGlite *is* PostgreSQL 18.3 and enforces the constraints this system relies
-   on, and the `pg` driver branch has a unit test — but the `postgres` leg of the CI matrix is the
-   first place the production driver runs end to end. Treat its first green run as the real
-   verification.
+1. **PGlite is single-threaded WebAssembly.** While it executes, the event loop is blocked, so a
+   burst of truly simultaneous HTTP requests can reset a socket locally in a way real PostgreSQL
+   does not. The pairing-race test therefore settles all requests and makes its authoritative
+   assertion against persisted state. Keep that pattern for any new concurrency test.
+
+   *(The original limitation here — "the production `pg` driver is unverified" — is now closed: the
+   `postgres` CI leg runs every suite against a real PostgreSQL 17 service container and passes.)*
 2. **Rate limiting and realtime state are in-process.** Correct for the single-instance MVP that
    `SYSTEM_DESIGN.md` §22 calls for; a second instance needs a shared limiter store and either
    sticky sessions or socket fanout. The roster TTL means a missed push is a latency issue, never a
@@ -186,8 +210,8 @@ scans every table as text for a sentinel, so a future relay or debug column woul
 
 ## Follow-up tasks
 
-- [ ] Confirm the `postgres` CI matrix leg passes once PR #1 is merged and `protocol-v1.0.0` is
-      tagged (until the tag exists, `contracts:pin` and the conformance job cannot run).
+- [x] ~~Confirm the `postgres` CI matrix leg passes~~ — done; PR #1 merged, `protocol-v1.0.0`
+      tagged at `83dfcc9`, and all five CI jobs are green.
 - [ ] Add password change/reset, bumping `sv`; add it to the OpenAPI contract first.
 - [ ] Shared rate-limit store and socket fanout before running more than one instance.
 - [ ] Roster signing key rotation schedule with an overlap window.
