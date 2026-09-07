@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.code-paste.dev/protocol-v1/clipboard-event.schema.json",
+  "title": "ClipboardEvent v1",
+  "description": "Transport-independent clipboard event envelope. Travels device-to-device over the LAN data plane. MUST NOT be accepted or stored by the control plane.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "eventId", "senderDeviceId", "sequence", "createdAt", "contentType", "size", "hash", "payload"],
+  "properties": {
+    "version": { "const": 1, "description": "Protocol version. A receiver MUST reject any value it does not explicitly support." },
+    "eventId": { "type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", "description": "Globally unique per event. Basis of receiver-side deduplication." },
+    "senderDeviceId": { "$ref": "device.schema.json#/$defs/deviceId" },
+    "sessionId": { "oneOf": [{ "$ref": "share-session.schema.json#/$defs/sessionId" }, { "type": "null" }], "description": "Null for personal-sync (own devices). Non-null binds the event to an explicit share session." },
+    "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "description": "Per-sender monotonically increasing. Ordering authority; wall clock is informational only." },
+    "createdAt": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$", "description": "Informational. MUST NOT be the sole ordering mechanism. Pattern is duplicated alongside `format` deliberately: `format` is an optional JSON Schema feature, and a validator that ignores it must still reject a malformed timestamp." },
+    "contentType": { "enum": ["text/plain", "image/png", "image/jpeg"], "description": "MVP content types. Anything else MUST be rejected." },
+    "size": { "type": "integer", "minimum": 0, "maximum": 10485760, "description": "Declared decoded payload size in bytes. MUST equal the actual decoded size." },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "sha256 of the normalized decoded payload, lowercase hex, algorithm-prefixed." },
+    "payload": { "type": "string", "description": "text/plain: the UTF-8 text. image/*: base64 of the image bytes." }
+  }
+}

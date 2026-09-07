@@ -1,0 +1,17 @@
+{
+  "name": "negative-sequence",
+  "rejectedBy": "schema",
+  "reason": "Sequence numbers are non-negative and monotonic",
+  "event": {
+    "version": 1,
+    "eventId": "3f2b1c4d-5e6f-4a8b-9c0d-1e2f3a4b5c6d",
+    "senderDeviceId": "cp_dev_01h2xcejqtf2nbrexx3vqjhp41",
+    "sessionId": null,
+    "sequence": -1,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "contentType": "text/plain",
+    "size": 5,
+    "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+    "payload": "hello"
+  }
+}

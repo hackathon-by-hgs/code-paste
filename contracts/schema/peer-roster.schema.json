@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.code-paste.dev/protocol-v1/peer-roster.schema.json",
+  "title": "SignedPeerRoster v1",
+  "description": "The control plane's answer to the only question an agent needs answered: which peers may I exchange clipboard data with right now, and how do I recognise them cryptographically? Closes SPEC_CONTRACT.md gap #4. See ADR-003.\n\nThe roster is delivered as detached-signed opaque bytes rather than as a signed JSON object. Verifying a signature over a JSON *object* requires canonicalisation (RFC 8785 JCS), and every implementation that canonicalises differently becomes a signature-bypass bug. Signing the exact transmitted bytes removes that entire failure class: a verifier checks the signature over `payload` as received, and only then parses it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payload", "signature"],
+  "properties": {
+    "payload": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/json",
+      "description": "base64 of the UTF-8 JSON bytes of a PeerRoster (see $defs/roster). MUST be signature-verified BEFORE being parsed."
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": { "const": "ed25519", "description": "No algorithm agility in v1. A single hardcoded algorithm cannot be downgraded." },
+        "keyId": { "type": "string", "pattern": "^cp_rk_[0-9a-hjkmnp-tv-z]{26}$", "description": "Roster signing key identifier, so the control plane can rotate keys without breaking verifiers." },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9+/]{86}==$", "description": "Ed25519 signature (64 raw bytes, base64) over the decoded `payload` bytes exactly as transmitted." }
+      }
+    }
+  },
+  "$defs": {
+    "roster": {
+      "title": "PeerRoster v1",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "rosterVersion", "issuedAt", "expiresAt", "self", "peers", "limits"],
+      "properties": {
+        "protocolVersion": { "const": 1 },
+        "rosterVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic per-device counter. Increments on every authorization-relevant change. A verifier that has seen a HIGHER rosterVersion MUST reject this one as a rollback attempt."
+        },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Short. After this instant the roster MUST NOT authorize anything. This is how revocation propagates without push infrastructure: authorization decays by default rather than requiring a successful delivery."
+        },
+        "self": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["deviceId", "userId", "keyFingerprint"],
+          "properties": {
+            "deviceId": { "$ref": "device.schema.json#/$defs/deviceId" },
+            "userId": { "$ref": "share-session.schema.json#/$defs/userId" },
+            "keyFingerprint": { "$ref": "device.schema.json#/$defs/keyFingerprint" }
+          },
+          "description": "Binds the roster to one requesting device. A roster issued for device A MUST NOT be honoured by device B."
+        },
+        "peers": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/peer" } },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text/plain", "image/png", "image/jpeg"],
+          "description": "Authoritative payload size limits in bytes. Closes SPEC_CONTRACT.md gap #7 by naming the control plane as the single source of truth, so two agents cannot enforce different ceilings.",
+          "properties": {
+            "text/plain": { "type": "integer", "minimum": 0, "maximum": 10485760 },
+            "image/png": { "type": "integer", "minimum": 0, "maximum": 10485760 },
+            "image/jpeg": { "type": "integer", "minimum": 0, "maximum": 10485760 }
+          }
+        }
+      }
+    },
+    "peer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deviceId", "userId", "publicKey", "keyFingerprint", "platform", "protocolVersion", "capabilities", "scope"],
+      "properties": {
+        "deviceId": { "$ref": "device.schema.json#/$defs/deviceId" },
+        "userId": { "$ref": "share-session.schema.json#/$defs/userId" },
+        "publicKey": { "$ref": "device.schema.json#/$defs/publicKey" },
+        "keyFingerprint": { "$ref": "device.schema.json#/$defs/keyFingerprint" },
+        "platform": { "$ref": "device.schema.json#/$defs/platform" },
+        "protocolVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
+        "capabilities": { "$ref": "device.schema.json#/$defs/capabilities" },
+        "scope": {
+          "enum": ["personal", "session"],
+          "description": "personal = another device owned by the same user. session = a device reachable only through an explicit, unexpired share session."
+        },
+        "sessionId": {
+          "oneOf": [{ "$ref": "share-session.schema.json#/$defs/sessionId" }, { "type": "null" }],
+          "description": "MUST be null when scope is personal, and non-null when scope is session."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "scope": { "const": "session" } }, "required": ["scope"] },
+          "then": { "properties": { "sessionId": { "$ref": "share-session.schema.json#/$defs/sessionId" } }, "required": ["sessionId"] }
+        },
+        {
+          "if": { "properties": { "scope": { "const": "personal" } }, "required": ["scope"] },
+          "then": { "properties": { "sessionId": { "type": "null" } } }
+        }
+      ]
+    }
+  }
+}
