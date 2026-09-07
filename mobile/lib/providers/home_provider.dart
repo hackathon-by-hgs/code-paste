@@ -1,23 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import '../models/network.dart';
 import '../models/app_state.dart';
+import '../models/clipboard_event.dart';
 import '../services/permission_service.dart';
 import '../services/local_device_discovery.dart';
+import '../services/peer_discovery_service.dart';
+import '../services/clipboard_sync_service.dart';
+import '../services/auth_service.dart';
 
 class HomeProvider extends ChangeNotifier {
   final PermissionService permissionService;
   final LocalDeviceDiscovery deviceDiscovery;
+  final PeerDiscoveryService peerDiscoveryService;
+  final ClipboardSyncService clipboardSyncService;
+  final AuthService authService;
 
   AppLifecycleState _state = AppLifecycleState.initializing;
   PermissionStatus _permissionStatus = PermissionStatus.notRequested;
   List<Network> _availableNetworks = [];
   Network? _connectedNetwork;
   AppError? _error;
+  bool _clipboardSyncEnabled = false;
+  StreamSubscription? _clipboardEventSubscription;
 
   HomeProvider({
     required this.permissionService,
     required this.deviceDiscovery,
+    required this.peerDiscoveryService,
+    required this.clipboardSyncService,
+    required this.authService,
   });
 
   // Getters
@@ -26,6 +39,7 @@ class HomeProvider extends ChangeNotifier {
   List<Network> get availableNetworks => _availableNetworks;
   Network? get connectedNetwork => _connectedNetwork;
   AppError? get error => _error;
+  bool get clipboardSyncEnabled => _clipboardSyncEnabled;
 
   bool get isActive => _state == AppLifecycleState.active;
   bool get isLoading =>
@@ -81,6 +95,45 @@ class HomeProvider extends ChangeNotifier {
 
       // Haptic feedback: success
       await HapticFeedback.mediumImpact();
+
+      // Fetch peer roster
+      try {
+        await peerDiscoveryService.fetchPeerRoster();
+        print('Peer roster fetched: ${peerDiscoveryService.getAvailablePeers().length} peers');
+      } catch (e) {
+        print('Failed to fetch peer roster: $e');
+        _error = AppError(
+          message: 'Roster Fetch Failed',
+          details: 'Could not fetch peer roster: $e',
+          recoverable: true,
+        );
+      }
+
+      // Start clipboard sync
+      try {
+        await clipboardSyncService.start();
+        _clipboardSyncEnabled = true;
+
+        // Listen to clipboard events
+        _clipboardEventSubscription =
+            clipboardSyncService.receivedEvents.listen(
+          (event) {
+            print('Received clipboard event: ${event.eventId}');
+            notifyListeners();
+          },
+          onError: (e) {
+            print('Clipboard sync error: $e');
+            _error = AppError(
+              message: 'Sync Error',
+              details: e.toString(),
+              recoverable: true,
+            );
+            notifyListeners();
+          },
+        );
+      } catch (e) {
+        print('Failed to start clipboard sync: $e');
+      }
 
       // Move to active state and start discovery
       _state = AppLifecycleState.active;
@@ -202,6 +255,15 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Stop clipboard sync
+      if (_clipboardSyncEnabled) {
+        await clipboardSyncService.stop();
+        await clipboardSyncService.dispose();
+        _clipboardSyncEnabled = false;
+        await _clipboardEventSubscription?.cancel();
+      }
+
+      // Stop device discovery
       await deviceDiscovery.stopDiscovery();
       _availableNetworks = [];
       _connectedNetwork = null;
@@ -231,6 +293,7 @@ class HomeProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _clipboardEventSubscription?.cancel();
     deviceDiscovery.dispose();
     super.dispose();
   }
