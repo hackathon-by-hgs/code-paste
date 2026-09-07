@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -40,10 +42,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // TODO: Call AuthService.login(email, password)
-      // For now, just navigate to home
+      final authService = context.read<AuthService>();
+      await authService.login(email, password);
+
       if (mounted) {
-        context.go('/home');
+        context.go('/device-setup');
       }
     } catch (e) {
       setState(() {

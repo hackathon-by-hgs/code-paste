@@ -6,6 +6,7 @@ import 'providers/home_provider.dart';
 import 'services/permission_service.dart';
 import 'services/local_device_discovery.dart';
 import 'services/auth_service.dart';
+import 'services/api_client.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,11 +17,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const apiBaseUrl = 'https://api.code-paste.example/v1';
+
     return MultiProvider(
       providers: [
+        Provider<ApiClient>(
+          create: (_) => ApiClient(baseUrl: apiBaseUrl),
+        ),
         Provider<AuthService>(
-          create: (_) => AuthServiceImpl(
-            apiBaseUrl: 'https://api.code-paste.example/v1',
+          create: (context) => AuthServiceImpl(
+            apiBaseUrl: apiBaseUrl,
+            apiClient: context.read<ApiClient>(),
           ),
         ),
         ChangeNotifierProvider(

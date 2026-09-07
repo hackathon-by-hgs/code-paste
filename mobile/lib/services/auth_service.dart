@@ -2,6 +2,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/export.dart';
 import 'dart:convert';
 import 'dart:math' show Random;
+import 'dart:io' show Platform;
+import 'package:package_info_plus/package_info_plus.dart';
+import 'api_client.dart';
 
 class TokenPair {
   final String accessToken;
@@ -95,26 +98,43 @@ class AuthServiceImpl implements AuthService {
   static const String _refreshTokenKey = 'refresh_token_secure';
 
   final FlutterSecureStorage _secureStorage;
-  final String apiBaseUrl;
+  final ApiClient _apiClient;
+  String? _appVersion;
 
   TokenPair? _cachedTokens;
 
   AuthServiceImpl({
-    required this.apiBaseUrl,
+    required String apiBaseUrl,
     FlutterSecureStorage? secureStorage,
-  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+    ApiClient? apiClient,
+  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+        _apiClient = apiClient ?? ApiClient(baseUrl: apiBaseUrl) {
+    _initAppVersion();
+  }
+
+  Future<void> _initAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      _appVersion = packageInfo.version;
+    } catch (e) {
+      _appVersion = '1.0.0';
+    }
+  }
 
   @override
   Future<TokenPair> login(String email, String password) async {
     try {
-      // TODO: Replace with actual HTTP call to POST /auth/login
-      // For now, mock implementation
-      final tokens = TokenPair(
-        accessToken: 'mock_access_token_$email',
-        refreshToken: 'mock_refresh_token_$email',
-        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      final response = await _apiClient.post(
+        '/auth/login',
+        {
+          'email': email,
+          'password': password,
+        },
+        withAuth: false,
       );
 
+      final tokens = TokenPair.fromJson(response);
+      _apiClient.setBearerToken(tokens.accessToken);
       await saveTokens(tokens);
       _cachedTokens = tokens;
       return tokens;
@@ -131,14 +151,16 @@ class AuthServiceImpl implements AuthService {
         throw Exception('No refresh token available');
       }
 
-      // TODO: Replace with actual HTTP call to POST /auth/refresh
-      // with storedTokens.refreshToken
-      final newTokens = TokenPair(
-        accessToken: 'mock_new_access_token',
-        refreshToken: 'mock_new_refresh_token',
-        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      final response = await _apiClient.post(
+        '/auth/refresh',
+        {
+          'refreshToken': storedTokens.refreshToken,
+        },
+        withAuth: false,
       );
 
+      final newTokens = TokenPair.fromJson(response);
+      _apiClient.setBearerToken(newTokens.accessToken);
       await saveTokens(newTokens);
       _cachedTokens = newTokens;
       return newTokens;
@@ -153,11 +175,17 @@ class AuthServiceImpl implements AuthService {
     try {
       final tokens = await getStoredTokens();
       if (tokens != null) {
-        // TODO: Call POST /auth/logout with refresh token
+        await _apiClient.post(
+          '/auth/logout',
+          {
+            'refreshToken': tokens.refreshToken,
+          },
+          withAuth: false,
+        );
       }
-      await clearAll();
     } catch (e) {
-      // Clear locally even if server call fails
+      // Logout fails gracefully, still clear locally
+    } finally {
       await clearAll();
     }
   }
@@ -205,21 +233,38 @@ class AuthServiceImpl implements AuthService {
       final publicKeyPem = _encodePublicKey(keyPair.publicKey);
       final privateKeyPem = _encodePrivateKey(keyPair.privateKey);
 
-      // TODO: Replace with actual HTTP call to POST /devices
-      // with pairingCode and public key
-      const platform = 'android'; // TODO: Detect platform
-      const appVersion = '1.0.0'; // TODO: Get from app config
+      final platform = Platform.isAndroid ? 'android' : 'ios';
+      final appVersion = _appVersion ?? '1.0.0';
       const protocolVersion = '1';
 
+      final response = await _apiClient.post(
+        '/devices',
+        {
+          'pairingCode': pairingCode,
+          'deviceName': deviceName,
+          'platform': platform,
+          'appVersion': appVersion,
+          'protocolVersion': protocolVersion,
+          'publicKey': publicKeyPem,
+          'capabilities': ['text/plain', 'image/png', 'image/jpeg'],
+        },
+        withAuth: false,
+      );
+
       final credentials = DeviceCredentials(
-        deviceId: 'mock_device_id_${DateTime.now().millisecondsSinceEpoch}',
-        deviceName: deviceName,
+        deviceId: response['deviceId'] as String,
+        deviceName: response['deviceName'] as String? ?? deviceName,
         publicKey: publicKeyPem,
         privateKey: privateKeyPem,
         platform: platform,
         appVersion: appVersion,
         protocolVersion: protocolVersion,
       );
+
+      // Set bearer token from device registration response
+      if (response['accessToken'] != null) {
+        _apiClient.setBearerToken(response['accessToken'] as String);
+      }
 
       await saveDeviceCredentials(credentials);
       return credentials;

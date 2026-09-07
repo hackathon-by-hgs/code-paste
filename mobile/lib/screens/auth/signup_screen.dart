@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_client.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -59,8 +62,17 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      // TODO: Call AuthService.signup(email, password)
-      // For now, just navigate to device registration
+      // Call signup API
+      final apiClient = context.read<ApiClient>();
+      await apiClient.post(
+        '/auth/signup',
+        {
+          'email': email,
+          'password': password,
+        },
+        withAuth: false,
+      );
+
       if (mounted) {
         context.go('/device-setup');
       }

@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 
 class DeviceSetupScreen extends StatefulWidget {
   const DeviceSetupScreen({Key? key}) : super(key: key);
@@ -45,7 +47,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
         return;
       }
 
-      // TODO: Call AuthService.registerDevice(pairingCode, deviceName)
+      final authService = context.read<AuthService>();
+      await authService.registerDevice(pairingCode, deviceName);
+
       if (mounted) {
         context.go('/home');
       }
