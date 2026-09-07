@@ -13,6 +13,11 @@ on:
   pull_request:
     branches: [backend]
 
+# Least privilege: no job here writes to the repo (GitHub Actions hardening guide). CodeQL, which
+# needs security-events: write, lives in its own workflow (codeql.yml).
+permissions:
+  contents: read
+
 concurrency:
   group: backend-${{ github.ref }}
   cancel-in-progress: true
@@ -25,6 +30,7 @@ jobs:
   quality:
     name: format · lint · typecheck · build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +47,7 @@ jobs:
   test:
     name: tests (${{ matrix.driver }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -92,6 +99,7 @@ jobs:
   audit:
     name: dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,6 +115,7 @@ jobs:
   no-secrets:
     name: no secrets committed
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: .
@@ -128,3 +137,41 @@ jobs:
             exit 1
           fi
           echo "No committed secrets found."
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            backend
+            auth
+            devices
+            sharing
+            protocol
+            persistence
+            deps
+            deps-dev
+            security
+          requireScope: false

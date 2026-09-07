@@ -1,0 +1,11 @@
+# CODEOWNERS for the `backend` branch (control plane).
+# ⚠️ Replace placeholder handles with real usernames/teams before enabling code-owner enforcement
+#    in .github/rulesets (off by default — see docs/CI_CD.md on main).
+
+*                           @hackathon-by-hgs/backend
+
+# Security-critical subsystems get an extra required reviewer once enforcement is on.
+/backend/src/auth/          @hackathon-by-hgs/backend @hackathon-by-hgs/security
+/backend/src/authorization/ @hackathon-by-hgs/backend @hackathon-by-hgs/security
+/backend/src/protocol/      @hackathon-by-hgs/backend @hackathon-by-hgs/contract-owners
+/.github/                   @hackathon-by-hgs/maintainers
