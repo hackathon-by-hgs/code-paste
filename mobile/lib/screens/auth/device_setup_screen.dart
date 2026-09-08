@@ -36,12 +36,23 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
     });
 
     try {
-      final pairingCode = _pairingCodeController.text.trim();
+      final pairingCode = _pairingCodeController.text
+          .replaceAll(RegExp(r'[\s-]'), '')
+          .trim()
+          .toUpperCase();
       final deviceName = _deviceNameController.text.trim();
 
       if (pairingCode.isEmpty || deviceName.isEmpty) {
         setState(() {
           _errorMessage = 'Please fill in all fields';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (pairingCode.length != 8) {
+        setState(() {
+          _errorMessage = 'Pairing code must be exactly 8 characters';
           _isLoading = false;
         });
         return;
@@ -106,7 +117,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Get this from: Settings > Add Device in the web app',
+                  'Get this from: Settings > Add Device in the web app (valid for 5 mins)',
                   style: CupertinoTheme.of(context).textTheme.textStyle
                       .copyWith(
                         fontSize: 12,
@@ -116,7 +127,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _pairingCodeController,
-                  placeholder: 'e.g., ABC-DEF-GHI',
+                  placeholder: '8 characters, e.g. K7M2QX9P',
+                  autocorrect: false,
+                  textCapitalization: TextCapitalization.characters,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,

@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _showPassword = false;
 
   @override
   void dispose() {
@@ -140,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 CupertinoTextField(
                   controller: _passwordController,
                   placeholder: 'Enter your password',
-                  obscureText: true,
+                  obscureText: !_showPassword,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
@@ -148,6 +149,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffix: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showPassword = !_showPassword;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        _showPassword
+                            ? CupertinoIcons.eye_solid
+                            : CupertinoIcons.eye_slash,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),

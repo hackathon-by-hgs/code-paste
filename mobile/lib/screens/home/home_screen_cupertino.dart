@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../models/app_state.dart';
 import '../../providers/home_provider.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/cupertino/cupertino_power_button.dart';
 import '../../widgets/cupertino/cupertino_bottom_sheet.dart';
 
@@ -54,6 +56,22 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(AppConfig.appName),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () async {
+            final authService = context.read<AuthService>();
+            await authService.logout();
+            if (context.mounted) {
+              context.go('/login');
+            }
+          },
+          child: const Icon(CupertinoIcons.square_arrow_left, size: 22),
+        ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => context.push('/sessions'),
+          child: const Icon(CupertinoIcons.person_2_fill, size: 22),
+        ),
         backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
         border: null,
       ),

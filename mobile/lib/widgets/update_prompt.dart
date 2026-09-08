@@ -3,14 +3,12 @@ import '../services/app_update_service.dart';
 
 class UpdatePrompt extends StatefulWidget {
   final AppUpdate update;
-  final VoidCallback onUpdate;
-  final VoidCallback? onLater;
+  final Future<void> Function() onUpdate;
 
   const UpdatePrompt({
     super.key,
     required this.update,
     required this.onUpdate,
-    this.onLater,
   });
 
   @override
@@ -23,7 +21,7 @@ class _UpdatePromptState extends State<UpdatePrompt> {
   Future<void> _handleUpdate() async {
     setState(() => _isLoading = true);
     try {
-      widget.onUpdate();
+      await widget.onUpdate();
     } finally {
       setState(() => _isLoading = false);
     }
@@ -80,12 +78,9 @@ class _UpdatePromptState extends State<UpdatePrompt> {
         ],
       ),
       actions: [
-        if (!widget.update.isCritical && widget.onLater != null)
+        if (!widget.update.isCritical)
           CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onLater?.call();
-            },
+            onPressed: () => Navigator.pop(context),
             child: const Text('Later'),
           ),
         CupertinoDialogAction(

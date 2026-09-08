@@ -1,11 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:pointycastle/export.dart';
 import 'dart:convert';
-import 'dart:math' show Random;
-import 'dart:typed_data';
 import 'dart:io' show Platform;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart' as crypt;
 import 'api_client.dart';
 
 class TokenPair {
@@ -20,10 +18,34 @@ class TokenPair {
   });
 
   factory TokenPair.fromJson(Map<String, dynamic> json) {
+    final accessToken = json['accessToken'] ?? json['access_token'];
+    final refreshToken = json['refreshToken'] ?? json['refresh_token'];
+    if (accessToken is! String || refreshToken is! String) {
+      throw FormatException(
+        'Token response is missing accessToken or refreshToken. '
+        'Got keys: ${json.keys.join(', ')}',
+      );
+    }
+
+    final expiresIn = json['expiresIn'] ?? json['expires_in'];
+    final expiresAt = json['expiresAt'] ?? json['expires_at'];
+
+    DateTime computedExpiresAt;
+    if (expiresIn is num) {
+      computedExpiresAt = DateTime.now().add(
+        Duration(seconds: expiresIn.toInt()),
+      );
+    } else if (expiresAt is String) {
+      computedExpiresAt = DateTime.parse(expiresAt);
+    } else {
+      // Default to 1 hour if neither field is present
+      computedExpiresAt = DateTime.now().add(const Duration(hours: 1));
+    }
+
     return TokenPair(
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
-      expiresAt: DateTime.parse(json['expiresAt'] as String),
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresAt: computedExpiresAt,
     );
   }
 
@@ -74,7 +96,7 @@ class DeviceCredentials {
       privateKey: json['privateKey'] as String,
       platform: json['platform'] as String,
       appVersion: json['appVersion'] as String,
-      protocolVersion: json['protocolVersion'] as String,
+      protocolVersion: json['protocolVersion']?.toString() ?? '1',
       syncEnabled: json['syncEnabled'] as bool? ?? true,
       revoked: json['revoked'] as bool? ?? false,
       createdAt: json['createdAt'] != null
@@ -154,31 +176,34 @@ class AuthServiceImpl implements AuthService {
         'password': password,
       }, withAuth: false);
 
-      // Validate response has required token fields
-      if (response['accessToken'] == null || response['refreshToken'] == null) {
-        throw Exception(
-          'Invalid login response: missing token fields. '
-          'Response: ${response.keys.join(", ")}',
-        );
-      }
-
       final tokens = TokenPair.fromJson(response);
       _apiClient.setBearerToken(tokens.accessToken);
       await saveTokens(tokens);
       _cachedTokens = tokens;
       return tokens;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        throw Exception('Invalid email or password. Please check and try again.');
+      } else if (e.statusCode == 422) {
+        throw Exception('Email format is invalid. Please check your email address.');
+      } else if (e.statusCode == 429) {
+        throw Exception('Too many login attempts. Please try again later.');
+      }
+      throw Exception('Login error: ${e.message}');
+    } on FormatException {
+      throw Exception('Invalid login response from server. Please try again.');
     } catch (e) {
-      throw Exception('Login failed: $e');
+      throw Exception('Login failed: Unable to connect to server. Check your internet connection.');
     }
   }
 
   @override
   Future<TokenPair> refresh() async {
     try {
-      // Get refresh token directly (even if access token expired)
       final refreshToken = await _getRefreshToken();
       if (refreshToken == null) {
-        throw Exception('No refresh token available');
+        await clearAll();
+        throw Exception('Session expired. Please log in again.');
       }
 
       final response = await _apiClient.post('/auth/refresh', {
@@ -190,9 +215,15 @@ class AuthServiceImpl implements AuthService {
       await saveTokens(newTokens);
       _cachedTokens = newTokens;
       return newTokens;
+    } on ApiException catch (e) {
+      await clearAll();
+      if (e.statusCode == 401) {
+        throw Exception('Session expired. Please log in again.');
+      }
+      throw Exception('Unable to refresh session. Please log in again.');
     } catch (e) {
       await clearAll();
-      throw Exception('Token refresh failed: $e');
+      throw Exception('Session refresh failed. Please log in again.');
     }
   }
 
@@ -227,6 +258,7 @@ class AuthServiceImpl implements AuthService {
   @override
   Future<TokenPair?> getStoredTokens() async {
     if (_cachedTokens != null && _cachedTokens!.isValid) {
+      _apiClient.setBearerToken(_cachedTokens!.accessToken);
       return _cachedTokens;
     }
 
@@ -241,6 +273,7 @@ class AuthServiceImpl implements AuthService {
         return null; // Return null if expired, let caller handle refresh
       }
 
+      _apiClient.setBearerToken(_cachedTokens!.accessToken);
       return _cachedTokens;
     } catch (e) {
       return null;
@@ -262,55 +295,94 @@ class AuthServiceImpl implements AuthService {
     String deviceName,
   ) async {
     try {
-      // Generate RSA key pair
-      final keyPair = _generateKeyPair();
-      final publicKeyPem = _encodePublicKey(keyPair.publicKey);
-      final privateKeyPem = _encodePrivateKey(keyPair.privateKey);
+      // Generate Ed25519 key pair
+      final ed25519 = crypt.Ed25519();
+      final keyPair = await ed25519.newKeyPair();
+      final publicKey = await keyPair.extractPublicKey();
+      final privateKeyBytes = await keyPair.extractPrivateKeyBytes();
 
-      // Calculate key fingerprint (SHA256 hex)
-      final keyFingerprint = sha256
-          .convert(utf8.encode(publicKeyPem))
-          .toString();
+      final publicKeyBytes = publicKey.bytes;
+      final publicKeyBase64 = base64Encode(publicKeyBytes);
+      final privateKeyBase64 = base64Encode(privateKeyBytes);
+
+      // Key fingerprint: sha256:<hex of raw 32 bytes>
+      final keyFingerprint = 'sha256:${sha256.convert(publicKeyBytes)}';
 
       final platform = Platform.isAndroid ? 'android' : 'ios';
       final appVersion = _appVersion ?? '1.0.0';
-      const protocolVersion = '1';
+      const protocolVersion = 1;
 
       final response = await _apiClient.post('/devices', {
-        'pairingCode': pairingCode,
-        'deviceName': deviceName,
+        'pairingCode': pairingCode
+            .replaceAll(RegExp(r'[\s-]'), '')
+            .trim()
+            .toUpperCase(),
+        'name': deviceName.trim(),
         'platform': platform,
         'appVersion': appVersion,
         'protocolVersion': protocolVersion,
-        'publicKey': publicKeyPem,
-        'capabilities': ['text/plain', 'image/png', 'image/jpeg'],
+        'publicKey': publicKeyBase64,
+        'capabilities': {
+          'contentTypes': ['text/plain', 'image/png', 'image/jpeg'],
+        },
       }, withAuth: false);
 
+      final deviceData =
+          (response['device'] as Map<String, dynamic>?) ?? response;
+      final deviceId =
+          (deviceData['id'] ?? response['deviceId'] ?? '') as String;
+      final returnedName =
+          (deviceData['name'] ?? response['deviceName'] ?? deviceName)
+              as String;
+      final syncEnabled =
+          (deviceData['syncEnabled'] ?? response['syncEnabled'] as bool?) ??
+          true;
+      final revoked =
+          (deviceData['revoked'] ?? response['revoked'] as bool?) ?? false;
+      final createdAtStr = deviceData['createdAt'] ?? response['createdAt'];
+
       final credentials = DeviceCredentials(
-        deviceId: response['deviceId'] as String,
-        deviceName: response['deviceName'] as String? ?? deviceName,
-        publicKey: publicKeyPem,
+        deviceId: deviceId,
+        deviceName: returnedName,
+        publicKey: publicKeyBase64,
         keyFingerprint: keyFingerprint,
-        privateKey: privateKeyPem,
+        privateKey: privateKeyBase64,
         platform: platform,
         appVersion: appVersion,
-        protocolVersion: protocolVersion,
-        syncEnabled: response['syncEnabled'] as bool? ?? true,
-        revoked: response['revoked'] as bool? ?? false,
-        createdAt: response['createdAt'] != null
-            ? DateTime.parse(response['createdAt'] as String)
+        protocolVersion: protocolVersion.toString(),
+        syncEnabled: syncEnabled,
+        revoked: revoked,
+        createdAt: createdAtStr != null
+            ? DateTime.parse(createdAtStr as String)
             : null,
       );
 
-      // Set bearer token from device registration response
-      if (response['accessToken'] != null) {
+      // Save credentials tokens if present in response
+      if (response['credentials'] != null) {
+        final tokens = TokenPair.fromJson(
+          response['credentials'] as Map<String, dynamic>,
+        );
+        _apiClient.setBearerToken(tokens.accessToken);
+        await saveTokens(tokens);
+      } else if (response['accessToken'] != null) {
         _apiClient.setBearerToken(response['accessToken'] as String);
       }
 
       await saveDeviceCredentials(credentials);
       return credentials;
+    } on ApiException catch (e) {
+      if (e.statusCode == 400) {
+        throw Exception('Invalid pairing code. Please check and try again.');
+      } else if (e.statusCode == 404) {
+        throw Exception('Pairing code not found or expired. Please request a new one.');
+      } else if (e.statusCode == 409) {
+        throw Exception('Device already registered. Please try a different device name.');
+      }
+      throw Exception('Device registration failed: ${e.message}');
+    } on FormatException {
+      throw Exception('Invalid response from server. Please try again.');
     } catch (e) {
-      throw Exception('Device registration failed: $e');
+      throw Exception('Device registration failed. Check your internet connection and try again.');
     }
   }
 
@@ -341,43 +413,5 @@ class AuthServiceImpl implements AuthService {
     await _secureStorage.delete(key: _deviceKey);
     await _secureStorage.delete(key: _refreshTokenKey);
     _cachedTokens = null;
-  }
-
-  // Generate RSA-2048 key pair
-  AsymmetricKeyPair _generateKeyPair() {
-    final generator = RSAKeyGenerator()
-      ..init(
-        ParametersWithRandom(
-          RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64),
-          FortunaRandom()..seed(KeyParameter(_getRandomBytes(32))),
-        ),
-      );
-    return generator.generateKeyPair();
-  }
-
-  Uint8List _getRandomBytes(int count) {
-    final secureRandom = Random.secure();
-    final bytes = List<int>.generate(count, (_) => secureRandom.nextInt(256));
-    return Uint8List.fromList(bytes);
-  }
-
-  String _encodePublicKey(dynamic key) {
-    if (key is RSAPublicKey) {
-      final modulus = key.modulus.toString();
-      final exponent = key.publicExponent.toString();
-      final encoded = base64Encode(utf8.encode('$modulus:$exponent'));
-      return '-----BEGIN PUBLIC KEY-----\n$encoded\n-----END PUBLIC KEY-----';
-    }
-    throw Exception('Invalid public key type');
-  }
-
-  String _encodePrivateKey(dynamic key) {
-    if (key is RSAPrivateKey) {
-      final modulus = key.modulus.toString();
-      final exponent = key.privateExponent.toString();
-      final encoded = base64Encode(utf8.encode('$modulus:$exponent'));
-      return '-----BEGIN PRIVATE KEY-----\n$encoded\n-----END PRIVATE KEY-----';
-    }
-    throw Exception('Invalid private key type');
   }
 }

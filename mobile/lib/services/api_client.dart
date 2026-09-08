@@ -53,7 +53,7 @@ class ApiClient {
             onTimeout: () => throw ApiException(message: 'Request timeout'),
           );
 
-      return _handleResponse(response);
+      return _handleResponse(response, withAuth: withAuth);
     } catch (e) {
       throw ApiException(message: 'GET $path failed: $e', originalError: e);
     }
@@ -77,7 +77,7 @@ class ApiClient {
             onTimeout: () => throw ApiException(message: 'Request timeout'),
           );
 
-      return _handleResponse(response);
+      return _handleResponse(response, withAuth: withAuth);
     } catch (e) {
       throw ApiException(message: 'POST $path failed: $e', originalError: e);
     }
@@ -101,7 +101,7 @@ class ApiClient {
             onTimeout: () => throw ApiException(message: 'Request timeout'),
           );
 
-      return _handleResponse(response);
+      return _handleResponse(response, withAuth: withAuth);
     } catch (e) {
       throw ApiException(message: 'PATCH $path failed: $e', originalError: e);
     }
@@ -124,13 +124,37 @@ class ApiClient {
         return {}; // No content
       }
 
-      return _handleResponse(response);
+      return _handleResponse(response, withAuth: withAuth);
     } catch (e) {
       throw ApiException(message: 'DELETE $path failed: $e', originalError: e);
     }
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  String _extractErrorMessage(Map<String, dynamic> body, String fallback) {
+    final error = body['error'];
+    if (error is String) return error;
+    if (error is Map<String, dynamic>) {
+      final msg = error['message'];
+      final details = error['details'];
+      if (details is List && details.isNotEmpty) {
+        final detailsStr = details
+            .map((d) {
+              if (d is Map) {
+                final path = d['path'] ?? '';
+                final m = d['message'] ?? '';
+                return path.toString().isNotEmpty ? '$path: $m' : m.toString();
+              }
+              return d.toString();
+            })
+            .join(', ');
+        return msg != null ? '$msg ($detailsStr)' : detailsStr;
+      }
+      if (msg is String) return msg;
+    }
+    return fallback;
+  }
+
+  Map<String, dynamic> _handleResponse(http.Response response, {bool withAuth = true}) {
     try {
       final body = response.body.isEmpty
           ? <String, dynamic>{}
@@ -144,56 +168,53 @@ class ApiClient {
           return body;
         case 400:
           throw ApiException(
-            message: _extractErrorMessage(body),
+            message: _extractErrorMessage(body, 'Invalid request. Please check your input.'),
             statusCode: response.statusCode,
           );
         case 401:
-          clearBearerToken();
+          if (withAuth) {
+            clearBearerToken();
+          }
           throw ApiException(
-            message: _extractErrorMessage(body),
+            message: _extractErrorMessage(body, 'Session expired. Please log in again.'),
             statusCode: response.statusCode,
           );
         case 409:
           throw ApiException(
-            message: _extractErrorMessage(body),
+            message: _extractErrorMessage(body, 'This resource already exists.'),
             statusCode: response.statusCode,
           );
         case 422:
           throw ApiException(
-            message: _extractErrorMessage(body),
+            message: _extractErrorMessage(body, 'Invalid data. Please check your input.'),
             statusCode: response.statusCode,
           );
         case 429:
           throw ApiException(
-            message: 'Too many requests. Try again later.',
+            message: 'Too many requests. Please wait and try again.',
+            statusCode: response.statusCode,
+          );
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          throw ApiException(
+            message: 'Server error. Please try again later.',
             statusCode: response.statusCode,
           );
         default:
           throw ApiException(
             message:
-                'HTTP ${response.statusCode}: ${_extractErrorMessage(body)}',
+                _extractErrorMessage(body, 'An error occurred. Please try again.'),
             statusCode: response.statusCode,
           );
       }
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(
-        message: 'Failed to parse response: $e',
+        message: 'Unable to process response. Please check your connection and try again.',
         originalError: e,
       );
     }
-  }
-
-  String _extractErrorMessage(Map<String, dynamic> body) {
-    final error = body['error'];
-    if (error is String) {
-      return error;
-    } else if (error is Map<String, dynamic>) {
-      // Handle nested error structure: { error: { message: "...", details: [...] } }
-      if (error['message'] is String) {
-        return error['message'] as String;
-      }
-    }
-    return 'Unknown error';
   }
 }

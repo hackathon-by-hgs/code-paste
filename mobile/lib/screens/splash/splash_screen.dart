@@ -32,9 +32,7 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(seconds: 2), () async {
       if (mounted) {
         await _checkForUpdate();
-        if (mounted) {
-          context.go('/login');
-        }
+        // Router will automatically redirect based on auth state
       }
     });
   }
@@ -50,11 +48,7 @@ class _SplashScreenState extends State<SplashScreen>
           builder: (context) => UpdatePrompt(
             update: update,
             onUpdate: () async {
-              Navigator.pop(context);
               await updateService.installUpdate(update);
-            },
-            onLater: () {
-              Navigator.pop(context);
             },
           ),
         );
