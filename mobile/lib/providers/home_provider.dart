@@ -128,12 +128,9 @@ class HomeProvider extends ChangeNotifier {
           'Peer roster fetched: ${peerDiscoveryService.getAvailablePeers().length} peers',
         );
       } catch (e) {
-        developer.log('Failed to fetch peer roster: $e');
-        _error = AppError(
-          message: 'Roster Fetch Failed',
-          details: 'Could not fetch peer roster: $e',
-          recoverable: true,
-        );
+        developer.log('Failed to fetch peer roster (continuing anyway): $e');
+        // Don't fail - app can work without peer roster during development
+        // Just log it and continue - peer sync will be unavailable but app still works
       }
 
       // Start clipboard sync

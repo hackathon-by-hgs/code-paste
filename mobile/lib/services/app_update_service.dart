@@ -44,6 +44,9 @@ class AppUpdateServiceImpl implements AppUpdateService {
   final ApiClient _apiClient;
   PackageInfo? _packageInfo;
 
+  /// Demo mode: shows sample update for testing (disable when backend ready)
+  static const bool demoMode = true;
+
   AppUpdateServiceImpl({required ApiClient apiClient}) : _apiClient = apiClient;
 
   Future<PackageInfo> _getPackageInfo() async {
@@ -61,21 +64,41 @@ class AppUpdateServiceImpl implements AppUpdateService {
         'Checking for app updates. Current version: ${packageInfo.version}',
       );
 
-      final response = await _apiClient.get('/app/update-check', withAuth: false);
+      // Demo mode: show sample update for testing
+      if (demoMode) {
+        SecureLogging.logSyncEvent('Demo mode: showing sample update');
+        return AppUpdate(
+          version: '1.1.0',
+          buildNumber: '2',
+          releaseNotes: 'Bug fixes and performance improvements\n\n• Fixed clipboard sync issues\n• Improved peer discovery\n• Better error handling',
+          downloadUrl: 'https://github.com/hackathon-by-hgs/code-paste/releases/download/v1.1.0/app-1.1.0.apk',
+          isCritical: false,
+          releaseDate: DateTime.now(),
+        );
+      }
 
-      if (response['updateAvailable'] != true) {
-        SecureLogging.logSyncEvent('App is up to date');
+      // Try to fetch from backend
+      try {
+        final response = await _apiClient.get('/app/update-check', withAuth: false);
+
+        if (response['updateAvailable'] != true) {
+          SecureLogging.logSyncEvent('App is up to date');
+          return null;
+        }
+
+        final update = AppUpdate.fromJson(response['update'] as Map<String, dynamic>);
+
+        if (isNewerVersion(packageInfo.version, update.version)) {
+          SecureLogging.logSyncEvent('Update available: ${update.version}');
+          return update;
+        }
+
+        return null;
+      } catch (e) {
+        // Backend endpoint not available yet - that's OK
+        SecureLogging.logSyncEvent('Update check failed (backend not ready): $e');
         return null;
       }
-
-      final update = AppUpdate.fromJson(response['update'] as Map<String, dynamic>);
-
-      if (isNewerVersion(packageInfo.version, update.version)) {
-        SecureLogging.logSyncEvent('Update available: ${update.version}');
-        return update;
-      }
-
-      return null;
     } catch (e) {
       SecureLogging.logError('app_update_check', e as Exception);
       return null;
