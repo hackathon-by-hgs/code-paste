@@ -22,7 +22,35 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   // API version lives in the URL path (ADR-008). `/v1` is applied here, once.
   app.setGlobalPrefix('v1');
 
-  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(
+    helmet({
+      /**
+       * A maximally restrictive CSP rather than none.
+       *
+       * This service returns JSON, so a CSP constrains nothing today — which is exactly why it
+       * was originally disabled, and why CodeQL was right to flag that
+       * (`js/insecure-helmet-configuration`, high). Disabling a control because it is currently
+       * inert is a bet on nothing ever returning HTML: a framework error page, a redirect
+       * interstitial, a future docs route. `default-src 'none'` costs an API nothing and means
+       * anything ever rendered here starts from deny.
+       *
+       * `frame-ancestors 'none'` also makes the framing protection a real header rather than
+       * relying on the legacy `X-Frame-Options` alone.
+       */
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          'default-src': ["'none'"],
+          'frame-ancestors': ["'none'"],
+          'base-uri': ["'none'"],
+          'form-action': ["'none'"],
+        },
+      },
+      // `same-site` would block the very cross-origin responses the allowlist below exists to
+      // permit.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   /**
    * CORS: a strict allowlist of exact origins.
