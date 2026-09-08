@@ -12,56 +12,58 @@ Written in Go. Talks to the control plane described by `contracts/openapi/contro
 
 ## How to run this domain in under 5 minutes
 
-1. Install Go 1.24+.
-2. Clone this branch:
-   ```bash
-   git clone git@github.com:hackathon-by-hgs/code-paste.git -b desktop --single-branch code-paste-desktop
-   cd code-paste-desktop/desktop
-   ```
-3. Point it at the control plane (origin only — `/v1` is appended for you):
-   ```bash
-   export CODEPASTE_API_URL=https://code-paste.onrender.com
-   ```
-4. Build:
-   ```bash
-   go build -o bin/agent ./cmd/agent
-   ```
-5. Mint a pairing code in the web app (**Pair Device**), then redeem it. It is valid for 5 minutes
-   and single-use:
-   ```bash
-   ./bin/agent pair K7M2QX9P "My Laptop"
-   ```
-6. On the second machine, repeat with its own code, then run each:
-   ```bash
-   ./bin/agent run
-   ```
-   They find each other over mDNS. If your network filters multicast, name the peer explicitly:
-   ```bash
-   export CODEPASTE_PEERS=192.168.1.42:47800
-   ```
+### For a user
 
-Copy something. It appears on the other machine's clipboard.
+Copy the binary for your platform from a release build (below), then:
 
-`agent peers` lists who is currently authorised; `agent status` reports local pairing state.
+```bash
+./agent pair K7M2QX9P
+```
+
+That is the whole setup. It registers the device, starts syncing in the background, and starts again
+at every login. No environment variables, no terminal left open.
+
+Mint the code under **My Devices** in the web app; it lasts 5 minutes and is single-use. Each machine
+needs its own — one identity per device is the security model, not an oversight.
+
+```bash
+./agent status      # pairing, credential store, background state
+./agent peers       # who may currently receive this clipboard
+./agent uninstall   # stop starting at login (pairing is kept)
+./agent run         # sync in this terminal instead of the background
+```
+
+### For a developer
+
+```bash
+git clone git@github.com:hackathon-by-hgs/code-paste.git -b desktop --single-branch code-paste-desktop
+cd code-paste-desktop/desktop
+
+# Release build: bakes the control-plane URL in, cross-compiles to ../dist
+./build.sh https://code-paste.onrender.com
+
+# Or run from source, supplying the URL yourself
+export CODEPASTE_API_URL=https://code-paste.onrender.com
+go run ./cmd/agent pair K7M2QX9P --no-service
+go run ./cmd/agent run
+```
 
 ### Testing on one machine
 
-Two agents on one host share a single OS clipboard, so that proves nothing. Point the second one
-at a file instead:
+Two agents on one host share a single OS clipboard, so that proves nothing. Point the second at a
+file instead, and give it its own credential-store entry:
 
 ```bash
 # terminal 1 — real clipboard
-CODEPASTE_LISTEN_PORT=47801 CODEPASTE_PEERS=127.0.0.1:47802 ./bin/agent run
+CODEPASTE_LISTEN_PORT=47801 CODEPASTE_PEERS=127.0.0.1:47802 ./agent run
 
 # terminal 2 — file standing in for a second machine's clipboard
-CODEPASTE_STATE_DIR=~/.agent2 CODEPASTE_CLIPBOARD=file:/tmp/clip2.txt   CODEPASTE_LISTEN_PORT=47802 CODEPASTE_PEERS=127.0.0.1:47801 ./bin/agent run
+CODEPASTE_KEY_ACCOUNT=agent2 CODEPASTE_CLIPBOARD=file:/tmp/clip2.txt   CODEPASTE_LISTEN_PORT=47802 CODEPASTE_PEERS=127.0.0.1:47801 ./agent run
 ```
 
 Copy on the desktop and `/tmp/clip2.txt` fills in; write that file and it lands on the real
-clipboard. Each agent needs its own pairing code and its own `CODEPASTE_KEY_ACCOUNT`.
-
-Add `CODEPASTE_MDNS=off` for this: two processes on one host cannot both receive on UDP 5353, so
-the static peer list is the way to link them.
+clipboard. Add `CODEPASTE_MDNS=off`: two processes on one host cannot both receive on UDP 5353, so
+the static peer list is what links them.
 
 ## Checks
 
@@ -82,6 +84,7 @@ desktop/
     ├── transport/      TCP + station-to-station handshake + AES-256-GCM frames
     ├── queue/          outbound buffer      — in-memory, non-durable by design
     ├── crypto/         Ed25519 identity + OS credential store
+    ├── service/        background service (Startup folder / launchd / systemd)
     ├── controlplane/   API client + roster verification
     ├── config/         environment
     └── daemon/         wiring and the authorization loops

@@ -21,6 +21,7 @@ import (
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/crypto"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/daemon"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/discovery"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/service"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/transport"
 )
 
@@ -36,6 +37,19 @@ func run() error {
 		usage()
 		return errors.New("no command given")
 	}
+
+	// --no-service opts out of the background install, for a foreground run or
+	// for anyone who prefers to manage the supervisor themselves.
+	noService := false
+	args := make([]string, 0, len(os.Args))
+	for _, arg := range os.Args {
+		if arg == "--no-service" {
+			noService = true
+			continue
+		}
+		args = append(args, arg)
+	}
+	os.Args = args
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -89,7 +103,25 @@ func run() error {
 		if err := agent.Pair(ctx, code, name); err != nil {
 			return err
 		}
-		fmt.Println("Paired. Run `agent run` to start.")
+
+		// Persist what we resolved, so the background service — which starts at
+		// login with no shell and therefore no environment — can find it.
+		if err := cfg.Save(); err != nil {
+			return fmt.Errorf("device paired but its settings could not be saved: %w", err)
+		}
+
+		fmt.Println("Paired.")
+		if noService {
+			fmt.Println("Run `agent run` to start syncing, or `agent install` to run it in the background.")
+			return nil
+		}
+		if err := installService(); err != nil {
+			// Pairing succeeded; only the convenience failed. Say which.
+			fmt.Fprintf(os.Stderr, "warning: could not start the background service: %v\n", err)
+			fmt.Println("Run `agent run` to sync in this terminal instead.")
+			return nil
+		}
+		fmt.Println("Syncing in the background, and at every login. Nothing else to do.")
 		return nil
 
 	case "run":
@@ -142,9 +174,14 @@ func run() error {
 		return nil
 
 	case "status":
+		// The background state is reported either way: "not paired" and
+		// "paired but not running" need different fixes, and the user should
+		// not have to guess which they are looking at.
+		defer printServiceStatus()
+
 		if err := agent.Load(); err != nil {
 			if errors.Is(err, daemon.ErrNotPaired) {
-				fmt.Println("Not paired.")
+				fmt.Println("Not paired. Mint a code under \"My Devices\" and run: agent pair <CODE>")
 				return nil
 			}
 			return err
@@ -154,6 +191,7 @@ func run() error {
 		if storeInfo.Migrated {
 			fmt.Println("  (migrated out of the old file store into secure storage)")
 		}
+
 		return nil
 
 	case "peers":
@@ -178,30 +216,76 @@ func run() error {
 		}
 		return nil
 
+	case "install":
+		if err := cfg.Save(); err != nil {
+			return err
+		}
+		if err := installService(); err != nil {
+			return err
+		}
+		fmt.Printf("Installed. %s\n", service.New().Describe())
+		return nil
+
+	case "uninstall":
+		if err := service.New().Uninstall(); err != nil {
+			return err
+		}
+		fmt.Println("Background service removed. Pairing and credentials are untouched.")
+		return nil
+
 	default:
 		usage()
 		return fmt.Errorf("unknown command %q", os.Args[1])
 	}
 }
 
+// printServiceStatus reports whether the agent runs in the background.
+func printServiceStatus() {
+	manager := service.New()
+	state, err := manager.Status()
+	if err != nil {
+		return
+	}
+	fmt.Printf("Background: %s (%s)\n", state, manager.Describe())
+	if state == service.StateNotInstalled {
+		fmt.Println("  run: agent install   — to sync in the background and at every login")
+	}
+}
+
+// installService registers the running binary to start at login and starts it.
+func installService() error {
+	execPath, err := service.ExecutablePath()
+	if err != nil {
+		return err
+	}
+	return service.New().Install(execPath)
+}
+
 func usage() {
 	fmt.Fprint(os.Stderr, `Code Paste desktop agent
 
-  agent pair <PAIRING-CODE> [device name]   redeem a code minted in the web app
-  agent run                                 maintain authorization
-  agent peers                               who may receive this clipboard
-  agent status                              show local pairing state
+  agent pair <PAIRING-CODE> [name]   redeem a code, then sync in the background
+  agent status                       pairing and background-service state
+  agent peers                        who may receive this clipboard
+  agent install                      start at login (pair does this for you)
+  agent uninstall                    stop starting at login
+  agent run                          sync in this terminal instead
 
 The pairing code comes from "My Devices" in the web app, NOT the session join
 code shown beside a Session ID in the sharing panel — the two look identical.
 
-Environment (see .env.example):
-  CODEPASTE_API_URL       required — control-plane origin, without /v1
+Flags:
+  --no-service            with pair: do not install the background service
+
+Environment (all optional; see .env.example). A release build has the
+control-plane URL compiled in, and pair saves everything else, so a normal
+install needs none of these:
+  CODEPASTE_API_URL       control-plane origin, without /v1
   CODEPASTE_LISTEN_PORT   peer port (default 47800)
-  CODEPASTE_PEERS         comma-separated host:port peers, for when mDNS cannot reach
-  CODEPASTE_MDNS          "off" to disable local-network discovery (default on)
+  CODEPASTE_PEERS         comma-separated host:port peers, when mDNS cannot reach
+  CODEPASTE_MDNS          "off" to disable local-network discovery
   CODEPASTE_CLIPBOARD     "os" (default) or "file:<path>" for one-machine tests
-  CODEPASTE_KEY_ACCOUNT   credential-store account name, to run two agents on one host
+  CODEPASTE_KEY_ACCOUNT   credential-store account, to run two agents on one host
 `)
 }
 

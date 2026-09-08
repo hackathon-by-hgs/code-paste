@@ -20,8 +20,17 @@ side, in both directions, with no echo loop.
   and counters. Forward secret; signatures cannot be replayed across sessions.
 - **Clipboard** — Windows (user32/kernel32 via syscall), macOS (pbcopy/pbpaste), Linux
   (wl-clipboard / xclip / xsel). Polled at 400ms with echo suppression.
-- **Sync engine** — watch → send to authorized peers; receive → write locally.
-- `agent peers` prints the verified roster.
+- **Sync engine** — watch → send to authorized peers; receive → write locally. Items copied while
+  no peer is connected are buffered and flushed on connect.
+- **Background service** — `agent pair` installs and starts it, so setup is one command with no
+  environment variables. Windows uses a hidden Startup-folder launcher, macOS a launchd
+  LaunchAgent, Linux a systemd user unit. All user-scoped: the agent needs the user's session for
+  the clipboard and the credential store, and installing needs no administrator rights.
+- **Zero-configuration start** — the control-plane URL is compiled in by `build.sh`, and `pair`
+  saves the resolved settings to `config.json`. A service starting at login has no shell to inherit
+  an environment from, so nothing may depend on one.
+- `agent peers` prints the verified roster; `agent status` reports pairing, credential store and
+  background state.
 
 ## How Authorization Gates Sync
 
@@ -73,11 +82,21 @@ on it, while the real LAN was on Wi-Fi.
    fingerprint dials and the higher one waits — deterministic, no negotiation. A regression test
    for this is still missing.
 3. Poll interval is fixed at 400ms. Fine on desktop; revisit if it ever runs on battery.
-4. **mDNS is not verifiable on a single Windows host.** Two processes cannot both receive on UDP
+4. **Windows uses the Startup folder, not a Scheduled Task.** A task restarts on crash and would be
+   the better mechanism, but `schtasks /create` returns "Access is denied" without elevation on a
+   default Windows 11 install, and a UAC prompt between the user and a working clipboard defeats
+   the point. The Startup folder needs no elevation; the cost is that a crashed agent returns at the
+   next login rather than immediately.
+5. **macOS and Linux service backends are unverified.** Written against launchd and systemd
+   documentation, compiled for both targets, but never run — there was no machine to run them on.
+   The Windows path is verified end to end.
+6. **mDNS is not verifiable on a single Windows host.** Two processes cannot both receive on UDP
    5353 — the second gets nothing. Confirmed with an isolated two-process test, so it is a platform
    limitation rather than a bug here, but cross-machine discovery remains unproven. Verify on two
    machines before relying on it.
-5. Images are still declared unsupported at pairing; the frame format already carries a content type.
+7. Images are still declared unsupported at pairing; the frame format already carries a content type.
+8. `agent install` points the login entry at the binary's current path. Move the binary and the entry
+   breaks; re-run `install` after relocating it.
 
 ## Contract Discrepancy Found
 
@@ -93,7 +112,8 @@ Worth fixing the example on `main` before another client copies it.
 
 ## Next Steps
 
-1. Verify mDNS between two real machines.
-2. Regression tests for simultaneous dial and for the duplicate-session rule.
-3. Images: widen capabilities at pairing and honour the roster's `limits`.
-4. Record the Go stack decision as an ADR on `main`, per `DEV_GUIDE.md` §4.
+1. Verify the macOS and Linux service backends on real machines.
+2. Verify mDNS between two real machines.
+3. Regression tests for simultaneous dial and for the duplicate-session rule.
+4. Images: widen capabilities at pairing and honour the roster's `limits`.
+5. Record the Go stack decision as an ADR on `main`, per `DEV_GUIDE.md` §4.
