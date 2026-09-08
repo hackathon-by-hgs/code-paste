@@ -87,3 +87,11 @@ func ParsePublicKey(encoded string) (ed25519.PublicKey, error) {
 	}
 	return ed25519.PublicKey(raw), nil
 }
+
+// PrivateKey exposes the signing key for the transport handshake.
+//
+// In-process use only. It is never serialised anywhere except the KeyStore, and
+// never leaves this machine.
+func (id *Identity) PrivateKey() ed25519.PrivateKey {
+	return id.private
+}

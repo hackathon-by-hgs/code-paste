@@ -6,9 +6,9 @@ moves clipboard content between devices.
 Written in Go. Talks to the control plane described by `contracts/openapi/control-plane.yaml` on
 `main`, pinned by `CONTRACTS_VERSION`.
 
-> **Status: partial.** Pairing, device credentials and roster verification work against the live
-> control plane. Clipboard, discovery and transport are interface stubs — **the agent does not sync
-> clipboard content yet.** See `HANDOFF.md`.
+> **Status: working.** Copy on one device, paste on another. Verified end to end against the live
+> control plane. Peers are configured rather than discovered (no mDNS yet), and the key store is
+> not yet OS secure storage — see `HANDOFF.md`.
 
 ## How to run this domain in under 5 minutes
 
@@ -30,15 +30,37 @@ Written in Go. Talks to the control plane described by `contracts/openapi/contro
    and single-use:
    ```bash
    ./bin/agent pair K7M2QX9P "My Laptop"
+   ```
+6. On the second machine, repeat with its own code, then point each at the other and run:
+   ```bash
+   export CODEPASTE_PEERS=192.168.1.42:47800   # the other machine
    ./bin/agent run
    ```
 
-`agent status` reports local pairing state.
+Copy something. It appears on the other machine's clipboard.
+
+`agent peers` lists who is currently authorised; `agent status` reports local pairing state.
+
+### Testing on one machine
+
+Two agents on one host share a single OS clipboard, so that proves nothing. Point the second one
+at a file instead:
+
+```bash
+# terminal 1 — real clipboard
+CODEPASTE_LISTEN_PORT=47801 CODEPASTE_PEERS=127.0.0.1:47802 ./bin/agent run
+
+# terminal 2 — file standing in for a second machine's clipboard
+CODEPASTE_STATE_DIR=~/.agent2 CODEPASTE_CLIPBOARD=file:/tmp/clip2.txt   CODEPASTE_LISTEN_PORT=47802 CODEPASTE_PEERS=127.0.0.1:47801 ./bin/agent run
+```
+
+Copy on the desktop and `/tmp/clip2.txt` fills in; write that file and it lands on the real
+clipboard. Each agent needs its own pairing code and its own `CODEPASTE_STATE_DIR`.
 
 ## Checks
 
 ```bash
-go vet ./...
+go vet -unsafeptr=false ./...   # see HANDOFF.md for why
 go test -race ./...
 gofmt -l .
 ```
@@ -49,9 +71,9 @@ gofmt -l .
 desktop/
 ├── cmd/agent/          CLI entrypoint
 └── internal/
-    ├── clipboard/      OS provider          — STUB
-    ├── discovery/      LAN (mDNS)           — STUB
-    ├── transport/      peer channel         — STUB
+    ├── clipboard/      OS provider (Windows/macOS/Linux) + file backend for tests
+    ├── discovery/      peer addresses       — static list; mDNS not yet done
+    ├── transport/      TCP + station-to-station handshake + AES-256-GCM frames
     ├── queue/          outbound buffer      — in-memory, non-durable by design
     ├── crypto/         Ed25519 identity + key store
     ├── controlplane/   API client + roster verification
@@ -72,7 +94,10 @@ rather than leaving it to review. The mandated boundaries themselves are unchang
 - Roster verification order is fixed and enforced in `internal/controlplane/roster.go`: signature
   over the raw bytes → parse → identity → version → expiry. Tests cover each rejection.
 - Discovery is not authorization. A LAN peer counts only if the roster lists its fingerprint **and**
-  it proves key possession in the transport handshake.
+  it proves key possession in the transport handshake — and that is re-checked at delivery time, so
+  revocation reaches connections that are already open.
+- Peer traffic is encrypted with per-session keys from an ephemeral X25519 exchange, so recovering a
+  device key later does not decrypt captured traffic.
 
 ## Documentation
 

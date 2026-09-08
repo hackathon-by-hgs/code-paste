@@ -1,22 +1,25 @@
-// Package daemon wires the agent together: pairing, credential storage, and
-// the loops that keep authorization fresh.
+// Package daemon wires the agent together: pairing, credential storage, the
+// loops that keep authorization fresh, and the clipboard sync path they gate.
 //
-// What is NOT here yet is the sync path itself — clipboard watch, discovery and
-// peer transport are stubs, so the agent currently maintains a verified roster
-// and does nothing with it. That is deliberate: authorization is the part that
-// has to be right before any byte moves.
+// The ordering matters. Nothing is sent or accepted until a signed roster has
+// been verified, and every transfer is re-checked against the roster in force
+// at that moment — so revocation lands on live connections, not just new ones.
 package daemon
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
 	"time"
 
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/clipboard"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/controlplane"
 	agentcrypto "github.com/hackathon-by-hgs/code-paste/desktop/internal/crypto"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/discovery"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/transport"
 )
 
 // ErrNotPaired means no stored identity: the user must pair first.
@@ -38,6 +41,7 @@ type Agent struct {
 	identity *agentcrypto.Identity
 	deviceID string
 	verifier *controlplane.RosterVerifier
+	sync     *syncEngine
 
 	roster *controlplane.PeerRoster
 }
@@ -182,6 +186,17 @@ func (a *Agent) FetchRoster(ctx context.Context) (*controlplane.PeerRoster, erro
 // DeviceID is this agent's device id.
 func (a *Agent) DeviceID() string { return a.deviceID }
 
+// PrivateKey is the device signing key, for the transport handshake.
+//
+// It stays inside the process: the transport signs with it and never exposes
+// or transmits it.
+func (a *Agent) PrivateKey() ed25519.PrivateKey {
+	if a.identity == nil {
+		return nil
+	}
+	return a.identity.PrivateKey()
+}
+
 // Fingerprint is this agent's own key fingerprint.
 func (a *Agent) Fingerprint() string {
 	if a.identity == nil {
@@ -190,10 +205,27 @@ func (a *Agent) Fingerprint() string {
 	return a.identity.Fingerprint()
 }
 
-// Run maintains authorization until ctx is cancelled.
+// EnableSync attaches a clipboard sync path. Without it the agent maintains a
+// roster and moves nothing, which is a valid way to run it.
+func (a *Agent) EnableSync(clip clipboard.Provider, tp transport.Transport, disc discovery.Discoverer) {
+	a.sync = newSyncEngine(clip, tp, disc, a.log, a.Fingerprint())
+}
+
+// Run maintains authorization, and syncs the clipboard when enabled, until ctx
+// is cancelled.
 func (a *Agent) Run(ctx context.Context) error {
 	if err := a.prepare(ctx); err != nil {
 		return err
+	}
+
+	// Started before the first roster fetch so the listener is up early, but it
+	// authorizes nobody until setRoster runs: an empty roster denies everyone.
+	if a.sync != nil {
+		go func() {
+			if err := a.sync.run(ctx); err != nil && ctx.Err() == nil {
+				a.log.Error("sync engine stopped", "error", err)
+			}
+		}()
 	}
 
 	go a.heartbeatLoop(ctx)
@@ -250,6 +282,9 @@ func (a *Agent) refreshRoster(ctx context.Context) (time.Duration, error) {
 		return 0, fmt.Errorf("roster verification failed: %w", err)
 	}
 	a.roster = roster
+	if a.sync != nil {
+		a.sync.setRoster(roster)
+	}
 
 	expiresAt, err := time.Parse(time.RFC3339, roster.ExpiresAt)
 	if err != nil {
@@ -273,9 +308,13 @@ func (a *Agent) rosterExpired(now time.Time) bool {
 	return !now.Before(expiresAt)
 }
 
-// stopSyncing drops the trusted roster. With no roster, no peer is authorized.
+// stopSyncing drops the trusted roster. With no roster, no peer is authorized:
+// the engine closes every live session and refuses new ones.
 func (a *Agent) stopSyncing() {
 	a.roster = nil
+	if a.sync != nil {
+		a.sync.setRoster(nil)
+	}
 }
 
 // Roster returns the currently trusted roster, or nil when syncing is halted.

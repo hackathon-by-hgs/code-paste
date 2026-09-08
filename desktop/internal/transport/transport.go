@@ -30,6 +30,9 @@ var (
 
 // Session is an authenticated connection to one verified peer.
 type Session interface {
+	// PeerKey is the peer's static key, already proven by the handshake.
+	// Match it against the roster to decide authorization.
+	PeerKey() ed25519.PublicKey
 	// Send delivers clipboard content to the peer.
 	Send(ctx context.Context, content *clipboard.Content) error
 	// Receive yields content sent by the peer until ctx ends.
@@ -49,13 +52,17 @@ type Transport interface {
 	Listen(ctx context.Context, authorize func(ed25519.PublicKey) bool) (<-chan Session, error)
 }
 
-// Disabled is a no-op Transport for builds without a backend.
+// Disabled is a no-op Transport, used when peer syncing is switched off.
 type Disabled struct{}
 
 func (Disabled) Dial(context.Context, discovery.Candidate, ed25519.PublicKey) (Session, error) {
 	return nil, ErrNotImplemented
 }
 
-func (Disabled) Listen(context.Context, func(ed25519.PublicKey) bool) (<-chan Session, error) {
-	return nil, ErrNotImplemented
+func (Disabled) Listen(ctx context.Context, _ func(ed25519.PublicKey) bool) (<-chan Session, error) {
+	// A closed channel rather than an error: a disabled transport is a valid
+	// configuration, so the daemon should idle, not fail.
+	sessions := make(chan Session)
+	close(sessions)
+	return sessions, nil
 }

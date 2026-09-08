@@ -15,10 +15,13 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/clipboard"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/config"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/controlplane"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/crypto"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/daemon"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/discovery"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/transport"
 )
 
 func main() {
@@ -90,7 +93,24 @@ func run() error {
 			}
 			return err
 		}
-		logger.Info("agent starting", "api", cfg.APIURL)
+
+		clip, err := clipboard.New(cfg.Clipboard)
+		if err != nil {
+			return err
+		}
+		peers, err := discovery.ParseStatic(cfg.Peers)
+		if err != nil {
+			return err
+		}
+		agent.EnableSync(clip, transport.NewTCP(agent.PrivateKey(), cfg.ListenPort), peers)
+
+		logger.Info("agent starting",
+			"api", cfg.APIURL,
+			"listen", cfg.ListenPort,
+			"peers", peers.Len(),
+			"clipboard", clipboardLabel(cfg.Clipboard),
+			"fingerprint", agent.Fingerprint(),
+		)
 		if err := agent.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			return err
 		}
@@ -148,7 +168,11 @@ func usage() {
 The pairing code comes from "My Devices" in the web app, NOT the session join
 code shown beside a Session ID in the sharing panel — the two look identical.
 
-Environment: see .env.example (CODEPASTE_API_URL is required).
+Environment (see .env.example):
+  CODEPASTE_API_URL       required — control-plane origin, without /v1
+  CODEPASTE_LISTEN_PORT   peer port (default 47800)
+  CODEPASTE_PEERS         comma-separated host:port list of peers to dial
+  CODEPASTE_CLIPBOARD     "os" (default) or "file:<path>" for one-machine tests
 `)
 }
 
@@ -165,6 +189,13 @@ func newLogger(level string) *slog.Logger {
 	// Text to stderr; no handler in this agent may be given clipboard content,
 	// tokens, keys or pairing codes as attributes.
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
+}
+
+func clipboardLabel(spec string) string {
+	if spec == "" {
+		return "os"
+	}
+	return spec
 }
 
 func defaultDeviceName() string {

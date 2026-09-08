@@ -3,7 +3,9 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -11,12 +13,22 @@ import (
 // fallback is how an agent ends up pointing at nothing.
 var ErrMissingAPIURL = errors.New("CODEPASTE_API_URL is not set (control-plane origin, without /v1)")
 
+// DefaultListenPort is the LAN peer port.
+const DefaultListenPort = 47_800
+
 type Config struct {
 	// APIURL is the control-plane ORIGIN. /v1 is appended by the client.
 	APIURL string
 	// StateDir holds device credentials; empty means the OS user config dir.
 	StateDir string
 	LogLevel string
+
+	// ListenPort is where this agent accepts peer connections.
+	ListenPort uint16
+	// Peers is a comma-separated host:port list. Empty means accept-only.
+	Peers string
+	// Clipboard selects the provider: "" / "os", or "file:<path>" for tests.
+	Clipboard string
 }
 
 func Load() (*Config, error) {
@@ -30,9 +42,21 @@ func Load() (*Config, error) {
 		level = "info"
 	}
 
+	port := uint16(DefaultListenPort)
+	if raw := strings.TrimSpace(os.Getenv("CODEPASTE_LISTEN_PORT")); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 16)
+		if err != nil || parsed == 0 {
+			return nil, fmt.Errorf("CODEPASTE_LISTEN_PORT must be a port number, got %q", raw)
+		}
+		port = uint16(parsed)
+	}
+
 	return &Config{
-		APIURL:   apiURL,
-		StateDir: strings.TrimSpace(os.Getenv("CODEPASTE_STATE_DIR")),
-		LogLevel: level,
+		APIURL:     apiURL,
+		StateDir:   strings.TrimSpace(os.Getenv("CODEPASTE_STATE_DIR")),
+		LogLevel:   level,
+		ListenPort: port,
+		Peers:      strings.TrimSpace(os.Getenv("CODEPASTE_PEERS")),
+		Clipboard:  strings.TrimSpace(os.Getenv("CODEPASTE_CLIPBOARD")),
 	}, nil
 }
