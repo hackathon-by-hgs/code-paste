@@ -1,0 +1,36 @@
+# Build context hygiene. Everything here either bloats the image, breaks the
+# build, or must never reach it.
+
+# Rebuilt inside the image; a host copy is the wrong platform's binaries.
+node_modules
+.next
+out
+build
+
+# SECURITY: env files must never enter the image. A copied .env.local would
+# override the NEXT_PUBLIC_API_URL build arg and bake host config into a
+# published artifact.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.github
+
+# Not needed to build or run the server.
+tests
+coverage
+*.md
+!README.md
+
+Dockerfile
+.dockerignore
+compose.yaml
+
+.vscode
+.idea
+.DS_Store
+*.log
+*.tsbuildinfo
+next-env.d.ts

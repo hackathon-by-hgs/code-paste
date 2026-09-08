@@ -1,0 +1,17 @@
+# Convenience wrapper so the required build arg is declared rather than
+# remembered. `docker compose up --build` is equivalent to the long
+# `docker build --build-arg …` line in the Dockerfile header.
+#
+# NEXT_PUBLIC_API_URL is consumed at BUILD time, not run time — changing it
+# requires a rebuild, not a restart.
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://code-paste.onrender.com}
+    image: clipit-frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
