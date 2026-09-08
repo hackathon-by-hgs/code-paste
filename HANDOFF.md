@@ -29,6 +29,9 @@ side, in both directions, with no echo loop.
 - **Zero-configuration start** — the control-plane URL is compiled in by `build.sh`, and `pair`
   saves the resolved settings to `config.json`. A service starting at login has no shell to inherit
   an environment from, so nothing may depend on one.
+- **Double-click setup** — a user who opens the .exe from Explorer gets an interactive prompt for
+  the pairing code, not a usage screen that vanishes. `internal/tty` distinguishes "launched from
+  Explorer" (this process owns the console) from "run in a shell", so shell behaviour is unchanged.
 - `agent peers` prints the verified roster; `agent status` reports pairing, credential store and
   background state.
 

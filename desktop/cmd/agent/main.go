@@ -23,7 +23,12 @@ import (
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/discovery"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/service"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/transport"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/tty"
 )
+
+// savedConfig is the resolved configuration, shared with the interactive
+// double-click path so it can persist settings after pairing.
+var savedConfig *config.Config
 
 func main() {
 	if err := run(); err != nil {
@@ -33,10 +38,6 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) < 2 {
-		usage()
-		return errors.New("no command given")
-	}
 
 	// --no-service opts out of the background install, for a foreground run or
 	// for anyone who prefers to manage the supervisor themselves.
@@ -53,8 +54,20 @@ func run() error {
 
 	cfg, err := config.Load()
 	if err != nil {
+		// A double-clicked binary must explain itself before the window shuts.
+		if tty.OwnsConsole() {
+			fmt.Println()
+			fmt.Println("  Code Paste — clipboard agent")
+			fmt.Println()
+			fmt.Printf("  %v\n", err)
+			fmt.Println()
+			fmt.Println("  This build has no control-plane URL compiled in. Download the")
+			fmt.Println("  official release, or set CODEPASTE_API_URL and run it again.")
+			return waitThenClose(err)
+		}
 		return err
 	}
+	savedConfig = cfg
 
 	logger := newLogger(cfg.LogLevel)
 
@@ -80,6 +93,16 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if len(os.Args) < 2 {
+		// Double-clicked from Explorer: walk the user through setup rather than
+		// flashing a usage screen at them. From a shell, print usage as usual.
+		if tty.OwnsConsole() {
+			return interactive(ctx, agent, storeInfo)
+		}
+		usage()
+		return errors.New("no command given")
+	}
 
 	switch os.Args[1] {
 	case "pair":

@@ -14,13 +14,17 @@ Written in Go. Talks to the control plane described by `contracts/openapi/contro
 
 ### For a user
 
-Copy the binary for your platform from a release build (below), then:
+Download the binary for your platform from the
+[latest release](https://github.com/hackathon-by-hgs/code-paste/releases), then either:
+
+- **double-click it** — it asks for the pairing code and sets everything up, or
+- run it from a terminal:
 
 ```bash
 ./agent pair K7M2QX9P
 ```
 
-That is the whole setup. It registers the device, starts syncing in the background, and starts again
+Either way that is the whole setup. It registers the device, starts syncing in the background, and starts again
 at every login. No environment variables, no terminal left open.
 
 Mint the code under **My Devices** in the web app; it lasts 5 minutes and is single-use. Each machine
