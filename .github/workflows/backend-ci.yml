@@ -121,7 +121,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build image
-        run: docker build -t code-paste-control-plane .
+        # The contract pin lives at the branch root, outside this build context, so it is passed
+        # in explicitly. Without it the running container reports contractsVersion "unknown".
+        run: docker build --build-arg CONTRACTS_VERSION="$(cat ../CONTRACTS_VERSION)" -t code-paste-control-plane .
 
       # The runtime image prunes @electric-sql/pglite, which npm installs into production anyway
       # because drizzle-orm declares it as an optional peer. Both it and its Drizzle driver are
@@ -159,7 +161,14 @@ jobs:
           echo "health:   $(cat /tmp/health.json)"
           # Proves migrations ran against real PostgreSQL inside the container, not against PGlite.
           grep -q '"driver":"postgres"' /tmp/health.json || { echo "::error::not using the postgres driver"; exit 1; }
-          echo "protocol: $(curl -fsS http://127.0.0.1:3000/v1/protocol)"
+          curl -fsS http://127.0.0.1:3000/v1/protocol > /tmp/protocol.json
+          echo "protocol: $(cat /tmp/protocol.json)"
+          # A deployed instance must report the contract it was built against, or drift between a
+          # deployment and its contract is undetectable — which is the entire reason the field
+          # exists. "unknown" means the pin never reached the image.
+          PINNED=$(cat ../CONTRACTS_VERSION)
+          grep -q "\"contractsVersion\":\"$PINNED\"" /tmp/protocol.json \
+            || { echo "::error::image reports the wrong contract version (expected $PINNED)"; exit 1; }
           # A signup exercises the schema the startup migrations just created, so a broken or
           # partially-applied migration fails here rather than on a user's first request.
           curl -fsS -X POST http://127.0.0.1:3000/v1/auth/signup \

@@ -23,6 +23,10 @@ services:
   control-plane:
     build:
       context: .
+      args:
+        # Keeps /v1/protocol honest about which contract this image was built against. Supply it
+        # from the branch root: CONTRACTS_VERSION=$(cat ../CONTRACTS_VERSION) docker compose up
+        CONTRACTS_VERSION: ${CONTRACTS_VERSION:-unknown}
     # Node is PID 1 here; the init process reaps zombies and forwards signals so Nest's shutdown
     # hooks actually run on `docker compose down`.
     init: true
