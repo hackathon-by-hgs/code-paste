@@ -42,6 +42,22 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # 
 
 Every other variable has a safe default; `.env.example` at the branch root documents all of them.
 
+### How configuration is loaded
+
+`npm start` and `npm run start:dev` read `.env` from the **branch root** using Node's built-in
+`--env-file-if-exists`. There is no dotenv dependency, and no file is required — if `.env` is
+absent, the app simply uses the real environment.
+
+**A real environment variable always wins over `.env`.** That ordering is deliberate: a platform's
+secret store or a container's environment must never be overridden by a file that happens to be
+sitting in the image. In practice this means:
+
+| Environment | Where configuration comes from |
+|---|---|
+| Local development | `cp .env.example .env` at the branch root, then `npm run start:dev` |
+| Docker / compose | Real environment variables. `.env` is excluded by `.dockerignore` and never read |
+| Managed platform | The platform's secret store, injected as environment variables |
+
 ### `ROSTER_SIGNING_SECRET_KEY` is durable infrastructure
 
 Treat it like a database, not like a config value. Every peer roster in the field is signed with

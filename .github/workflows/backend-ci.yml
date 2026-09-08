@@ -48,6 +48,27 @@ jobs:
       # against src/. This boots dist/main.js and checks it serves.
       - run: npm run smoke
 
+      # The documented local-dev workflow is `cp .env.example .env`. Nothing loaded that file for a
+      # while: the app read process.env directly, so a developer following the README got a config
+      # error from a file the app never opened. This asserts the documented path actually works,
+      # using the pristine template and a distinctive port.
+      - name: .env.example works as documented
+        run: |
+          cp ../.env.example ../.env
+          sed -i 's/^PORT=3000/PORT=3311/' ../.env
+          npm start & APP=$!
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3311/v1/health > /tmp/env-health.json && break
+            sleep 1
+          done
+          kill $APP 2>/dev/null || true
+          rm -f ../.env
+          if ! [ -s /tmp/env-health.json ]; then
+            echo "::error::the app did not start from a pristine .env.example"
+            exit 1
+          fi
+          echo ".env loaded: $(cat /tmp/env-health.json)"
+
   test:
     name: tests (${{ matrix.driver }})
     runs-on: ubuntu-latest
