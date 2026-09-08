@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:developer' as developer;
 import '../../services/auth_service.dart';
 import '../../services/sharing_service.dart';
+import '../../services/clipboard_sync_service.dart';
 
 class ShareSessionsScreen extends StatefulWidget {
   const ShareSessionsScreen({super.key});
@@ -231,6 +233,21 @@ class _ShareSessionsScreenState extends State<ShareSessionsScreen> {
     try {
       final sharingService = context.read<SharingService>();
       await sharingService.joinSession(sessionId, joinCode);
+
+      // Set active session in clipboard sync
+      final clipboardSync = context.read<ClipboardSyncService>();
+      final session = await sharingService.getSession(sessionId);
+
+      // Extract member user IDs as peer identifiers
+      final memberIds = session.members
+          .map((m) => m.userId)
+          .whereType<String>()
+          .toList();
+      clipboardSync.setActiveSession(sessionId, memberIds);
+
+      developer.log(
+        'Joined session $sessionId with ${memberIds.length} members',
+      );
       await _loadSessions();
     } catch (e) {
       if (mounted) {
@@ -266,9 +283,17 @@ class _ShareSessionsScreenState extends State<ShareSessionsScreen> {
 
     if (confirm == true && mounted) {
       final sharingService = context.read<SharingService>();
+      final clipboardSync = context.read<ClipboardSyncService>();
       setState(() => _isLoading = true);
       try {
         await sharingService.leaveSession(session.id);
+
+        // Clear active session if leaving current session
+        if (clipboardSync.activeSessionId == session.id) {
+          clipboardSync.setActiveSession(null, []);
+          developer.log('Cleared active session: ${session.id}');
+        }
+
         await _loadSessions();
       } catch (e) {
         if (mounted) {
@@ -305,9 +330,17 @@ class _ShareSessionsScreenState extends State<ShareSessionsScreen> {
 
     if (confirm == true && mounted) {
       final sharingService = context.read<SharingService>();
+      final clipboardSync = context.read<ClipboardSyncService>();
       setState(() => _isLoading = true);
       try {
         await sharingService.expireSession(session.id);
+
+        // Clear active session if expiring current session
+        if (clipboardSync.activeSessionId == session.id) {
+          clipboardSync.setActiveSession(null, []);
+          developer.log('Cleared active session: ${session.id}');
+        }
+
         await _loadSessions();
       } catch (e) {
         if (mounted) {

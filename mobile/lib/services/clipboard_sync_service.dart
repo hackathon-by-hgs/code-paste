@@ -13,6 +13,8 @@ abstract class ClipboardSyncService {
   Future<void> sendClipboardEvent(ClipboardEvent event);
   Stream<ClipboardEvent> get receivedEvents;
   Future<void> dispose();
+  void setActiveSession(String? sessionId, List<String> sessionPeerIds);
+  String? get activeSessionId;
 }
 
 class ClipboardSyncServiceImpl implements ClipboardSyncService {
@@ -26,6 +28,8 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   int _eventSequence = 0;
   StreamSubscription? _clipboardSubscription;
   late final StreamController<ClipboardEvent> _receivedEventsController;
+  String? _activeSessionId;
+  List<String> _sessionPeerIds = [];
 
   // Event deduplication: keep track of received eventIds to prevent echo loops
   final Set<String> _receivedEventIds = {};
@@ -36,7 +40,19 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
   bool get isRunning => _isRunning;
 
   @override
+  String? get activeSessionId => _activeSessionId;
+
+  @override
   Stream<ClipboardEvent> get receivedEvents => _receivedEventsController.stream;
+
+  @override
+  void setActiveSession(String? sessionId, List<String> sessionPeerIds) {
+    _activeSessionId = sessionId;
+    _sessionPeerIds = sessionPeerIds;
+    developer.log(
+      'Active session set: $sessionId with ${sessionPeerIds.length} peers',
+    );
+  }
 
   ClipboardSyncServiceImpl({
     required ClipboardService clipboardService,
@@ -172,9 +188,22 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
       return;
     }
 
-    final peers = _peerDiscoveryService.getAvailablePeers();
+    // Get peers - filter by session if one is active
+    var peers = _peerDiscoveryService.getAvailablePeers();
+    if (_activeSessionId != null && _sessionPeerIds.isNotEmpty) {
+      // Only send to peers in the active session
+      peers = peers
+          .where((peer) => _sessionPeerIds.contains(peer.deviceId))
+          .toList();
+      developer.log(
+        'Filtering to session peers: ${peers.length} of ${_peerDiscoveryService.getAvailablePeers().length}',
+      );
+    }
+
     if (peers.isEmpty) {
-      SecureLogging.logSyncEvent('No available peers to send clipboard event');
+      SecureLogging.logSyncEvent(
+        'No available peers to send clipboard event${_activeSessionId != null ? ' in session' : ''}',
+      );
       return;
     }
 
