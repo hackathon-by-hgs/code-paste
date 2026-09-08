@@ -154,6 +154,14 @@ class AuthServiceImpl implements AuthService {
         'password': password,
       }, withAuth: false);
 
+      // Validate response has required token fields
+      if (response['accessToken'] == null || response['refreshToken'] == null) {
+        throw Exception(
+          'Invalid login response: missing token fields. '
+          'Response: ${response.keys.join(", ")}',
+        );
+      }
+
       final tokens = TokenPair.fromJson(response);
       _apiClient.setBearerToken(tokens.accessToken);
       await saveTokens(tokens);
