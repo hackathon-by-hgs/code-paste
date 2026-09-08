@@ -50,9 +50,7 @@ class AppUpdateServiceImpl implements AppUpdateService {
   AppUpdateServiceImpl({required ApiClient apiClient}) : _apiClient = apiClient;
 
   Future<PackageInfo> _getPackageInfo() async {
-    if (_packageInfo == null) {
-      _packageInfo = await PackageInfo.fromPlatform();
-    }
+    _packageInfo ??= await PackageInfo.fromPlatform();
     return _packageInfo!;
   }
 
@@ -152,6 +150,7 @@ class AppUpdateServiceImpl implements AppUpdateService {
     }
   }
 
+  @override
   Future<void> installUpdate(AppUpdate update) async {
     try {
       if (Platform.isAndroid) {

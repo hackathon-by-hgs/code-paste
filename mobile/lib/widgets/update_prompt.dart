@@ -64,7 +64,7 @@ class _UpdatePromptState extends State<UpdatePrompt> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: CupertinoColors.systemRed.withOpacity(0.1),
+                color: CupertinoColors.systemRed.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
