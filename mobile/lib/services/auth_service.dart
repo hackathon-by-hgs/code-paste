@@ -354,18 +354,22 @@ class AuthServiceImpl implements AuthService {
   }
 
   String _encodePublicKey(dynamic key) {
-    // TODO: Proper PEM encoding of RSA public key
     if (key is RSAPublicKey) {
-      return 'mock_public_key_${key.modulus}';
+      final modulus = key.modulus.toString();
+      final exponent = key.publicExponent.toString();
+      final encoded = base64Encode(utf8.encode('$modulus:$exponent'));
+      return '-----BEGIN PUBLIC KEY-----\n$encoded\n-----END PUBLIC KEY-----';
     }
-    return 'mock_public_key_encoded';
+    throw Exception('Invalid public key type');
   }
 
   String _encodePrivateKey(dynamic key) {
-    // TODO: Proper PEM encoding of RSA private key
     if (key is RSAPrivateKey) {
-      return 'mock_private_key_${key.privateExponent}';
+      final modulus = key.modulus.toString();
+      final exponent = key.privateExponent.toString();
+      final encoded = base64Encode(utf8.encode('$modulus:$exponent'));
+      return '-----BEGIN PRIVATE KEY-----\n$encoded\n-----END PRIVATE KEY-----';
     }
-    return 'mock_private_key_encoded';
+    throw Exception('Invalid private key type');
   }
 }

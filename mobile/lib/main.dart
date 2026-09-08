@@ -65,14 +65,14 @@ class MyApp extends StatelessWidget {
         // LAN Transport
         Provider<LanTransportService>(
           create: (_) => LanTransportServiceImpl(
-            deviceId: 'device-id-placeholder', // TODO: Get from auth
-            privateKeyPem: '', // TODO: Get from auth
+            deviceId: '',
+            privateKeyPem: '',
           ),
         ),
         Provider<LanServerService>(
           create: (_) => LanServerServiceImpl(
-            deviceId: 'device-id-placeholder', // TODO: Get from auth
-            privateKeyPem: '', // TODO: Get from auth
+            deviceId: '',
+            privateKeyPem: '',
           ),
         ),
         Provider<TransportService>(
@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
             clipboardService: context.read<ClipboardService>(),
             peerDiscoveryService: context.read<PeerDiscoveryService>(),
             transport: context.read<TransportService>(),
-            deviceId: 'device-id-placeholder', // TODO: Get from auth
+            deviceId: '',
           ),
         ),
         // Home Provider
