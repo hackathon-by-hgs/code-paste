@@ -1,79 +1,101 @@
-import type { ShareSession, ShareMember } from './types';
+/**
+ * Explicit, temporary sharing.
+ *
+ * Two asymmetries the UI has to respect:
+ *   - `joinCode` exists only in the creation response. It is stored as a hash and
+ *     can never be fetched again; a user who loses it creates a new session.
+ *   - An owner cannot leave their own session — they expire it instead.
+ */
 
-// Mocked session state
-let currentSession: ShareSession | null = null;
+import { request, requestVoid } from '../lib/http';
+import type {
+  SessionId,
+  SessionStatus,
+  ShareSession,
+  ShareSessionList,
+  ShareSessionWithJoinCode,
+  UserId,
+} from './types';
 
-export async function getSession(): Promise<ShareSession | null> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return currentSession;
+export interface ListSessionsOptions {
+  limit?: number;
+  cursor?: string;
+  status?: SessionStatus;
 }
 
-export async function createSession(): Promise<{ session: ShareSession, joinCode: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  
-  currentSession = {
-    id: `sess_${Date.now()}`,
-    ownerUserId: 'user_123',
-    status: 'active',
-    expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    members: [
-      {
-        userId: 'user_123',
-        email: 'hello@example.com',
-        role: 'owner',
-        joinedAt: new Date().toISOString(),
-        revoked: false,
-        revokedAt: null
-      }
-    ]
-  };
-  
-  return { session: currentSession, joinCode: 'A1B2C3D4' };
-}
+export const listSessions = (options: ListSessionsOptions = {}): Promise<ShareSessionList> =>
+  request<ShareSessionList>('/share-sessions', {
+    query: { limit: options.limit, cursor: options.cursor, status: options.status },
+  });
 
-export async function joinSession(joinCode: string): Promise<ShareSession> {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  
-  if (joinCode !== 'A1B2C3D4') {
-    throw new Error('Invalid join code');
+/** Every session with the given status, following the cursor to exhaustion. */
+export const getSessions = async (status?: SessionStatus): Promise<ShareSession[]> => {
+  const all: ShareSession[] = [];
+  let cursor: string | undefined;
+  const MAX_PAGES = 20;
+
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const result = await listSessions({ cursor, status, limit: 100 });
+    all.push(...result.data);
+    if (!result.nextCursor) break;
+    cursor = result.nextCursor;
   }
-  
-  currentSession = {
-    id: `sess_remote_${Date.now()}`,
-    ownerUserId: 'user_456',
-    status: 'active',
-    expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    members: [
-      {
-        userId: 'user_456',
-        email: 'owner@example.com',
-        role: 'owner',
-        joinedAt: new Date().toISOString(),
-        revoked: false,
-        revokedAt: null
-      },
-      {
-        userId: 'user_123',
-        email: 'hello@example.com',
-        role: 'member',
-        joinedAt: new Date().toISOString(),
-        revoked: false,
-        revokedAt: null
-      }
-    ]
-  };
-  
-  return currentSession;
-}
 
-export async function revokeMember(userId: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  
-  if (currentSession) {
-    currentSession.members = currentSession.members.map(m => 
-      m.userId === userId ? { ...m, revoked: true, revokedAt: new Date().toISOString() } : m
-    );
-  }
-}
+  return all;
+};
+
+/**
+ * The caller's current active session, or null.
+ *
+ * The contract permits several; the UI presents one at a time, so this picks the
+ * newest and lets the rest expire on their own.
+ */
+export const getActiveSession = async (): Promise<ShareSession | null> => {
+  const sessions = await getSessions('active');
+  if (sessions.length === 0) return null;
+  return sessions.reduce((newest, candidate) =>
+    Date.parse(candidate.createdAt) > Date.parse(newest.createdAt) ? candidate : newest,
+  );
+};
+
+/** Full session including members — the "who can receive my clipboard data" view. */
+export const getSession = (id: SessionId): Promise<ShareSession> =>
+  request<ShareSession>(`/share-sessions/${id}`);
+
+/**
+ * Creates a session. `expiresInSeconds` is capped server-side (60–86400); the
+ * cap is enforced there, not in the UI, so a longer request is simply clamped.
+ */
+export const createSession = (expiresInSeconds = 3600): Promise<ShareSessionWithJoinCode> =>
+  request<ShareSessionWithJoinCode>('/share-sessions', {
+    method: 'POST',
+    body: { expiresInSeconds },
+  });
+
+/**
+ * Joins a session. Idempotent for an existing member.
+ *
+ * Both arguments are required by the contract: the code alone does not identify
+ * a session. `403 forbidden` covers both a wrong code and a revoked membership —
+ * a revoked member cannot rejoin.
+ */
+export const joinSession = (id: SessionId, joinCode: string): Promise<ShareSession> =>
+  request<ShareSession>(`/share-sessions/${id}/join`, {
+    method: 'POST',
+    body: { joinCode },
+  });
+
+/** Leave a session. `403 forbidden` if you are the owner — expire it instead. */
+export const leaveSession = (id: SessionId): Promise<void> =>
+  requestVoid(`/share-sessions/${id}/leave`, { method: 'POST' });
+
+/** Owner only. The revoked member drops out of every affected roster. */
+export const revokeMember = (id: SessionId, userId: UserId): Promise<ShareSession> =>
+  request<ShareSession>(`/share-sessions/${id}/revoke-member`, {
+    method: 'POST',
+    body: { userId },
+  });
+
+/** Owner only. The "stop sharing" button. Idempotent. */
+export const expireSession = (id: SessionId): Promise<ShareSession> =>
+  request<ShareSession>(`/share-sessions/${id}/expire`, { method: 'POST' });
