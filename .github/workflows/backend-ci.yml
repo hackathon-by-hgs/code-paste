@@ -100,6 +100,79 @@ jobs:
       - run: npm run test:security
       - run: npm run test:e2e
 
+  docker:
+    name: image builds and serves
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: code_paste_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t code-paste-control-plane .
+
+      # The runtime image prunes @electric-sql/pglite, which npm installs into production anyway
+      # because drizzle-orm declares it as an optional peer. Both it and its Drizzle driver are
+      # required lazily, so production never loads it — but only booting the pruned image proves
+      # that, and this asserts the prune actually happened.
+      - name: Assert pglite is not shipped
+        run: |
+          if docker run --rm --entrypoint sh code-paste-control-plane -c 'ls node_modules/@electric-sql' 2>/dev/null; then
+            echo "::error::@electric-sql/pglite is present in the production image"
+            exit 1
+          fi
+          echo "pglite correctly absent from the runtime image"
+
+      - name: Run the image against PostgreSQL
+        run: |
+          KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+          docker run -d --name control-plane --network host \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            -e DATABASE_URL=postgres://postgres:ci@127.0.0.1:5432/code_paste_ci \
+            -e AUTH_JWT_SECRET=ci-only-synthetic-jwt-secret-value-0123456789abcdef \
+            -e ROSTER_SIGNING_SECRET_KEY="$KEY" \
+            code-paste-control-plane
+
+      - name: Wait for health, then exercise the real device flow
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/v1/health > /tmp/health.json; then break; fi
+            sleep 2
+          done
+          if ! [ -s /tmp/health.json ]; then
+            echo "::error::image did not become healthy"
+            exit 1
+          fi
+          echo "health:   $(cat /tmp/health.json)"
+          # Proves migrations ran against real PostgreSQL inside the container, not against PGlite.
+          grep -q '"driver":"postgres"' /tmp/health.json || { echo "::error::not using the postgres driver"; exit 1; }
+          echo "protocol: $(curl -fsS http://127.0.0.1:3000/v1/protocol)"
+          # A signup exercises the schema the startup migrations just created, so a broken or
+          # partially-applied migration fails here rather than on a user's first request.
+          curl -fsS -X POST http://127.0.0.1:3000/v1/auth/signup \
+            -H 'content-type: application/json' \
+            -d '{"email":"ci-image-check@example.test","password":"synthetic-ci-password"}' \
+            -o /tmp/signup.json
+          grep -q '"accessToken"' /tmp/signup.json || { echo "::error::signup against the image failed"; exit 1; }
+          echo "signup:   ok"
+
+      - name: Container logs
+        if: always()
+        run: docker logs control-plane || true
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest

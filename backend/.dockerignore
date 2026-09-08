@@ -1,0 +1,14 @@
+# Keep the build context small and secrets out of it.
+node_modules
+dist
+coverage
+.contracts
+test
+**/*.spec.ts
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.git
+Dockerfile
+docker-compose.yml
