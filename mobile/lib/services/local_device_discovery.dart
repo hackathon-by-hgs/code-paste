@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import '../models/network.dart';
 
 /// LocalDeviceDiscovery
@@ -36,39 +35,6 @@ class LocalDeviceDiscoveryImpl implements LocalDeviceDiscovery {
   Future<void> stopDiscovery() async {
     _scanTimer?.cancel();
     _scanTimer = null;
-  }
-
-  Network? _generateMockDevice() {
-    // Simulate random device discovery
-    final random = Random();
-    if (random.nextDouble() < 0.3) {
-      // 30% chance to discover a device
-      final devices = [
-        Network(
-          id: 'device-001',
-          name: 'MacBook Pro',
-          status: ConnectionStatus.available,
-          signalStrength: SignalStrength.excellent,
-          isCurrentlyConnected: false,
-        ),
-        Network(
-          id: 'device-002',
-          name: 'iMac',
-          status: ConnectionStatus.available,
-          signalStrength: SignalStrength.good,
-          isCurrentlyConnected: false,
-        ),
-        Network(
-          id: 'device-003',
-          name: 'iPad',
-          status: ConnectionStatus.available,
-          signalStrength: SignalStrength.fair,
-          isCurrentlyConnected: false,
-        ),
-      ];
-      return devices[random.nextInt(devices.length)];
-    }
-    return null;
   }
 
   @override
