@@ -46,8 +46,15 @@ RUN rm -rf node_modules/@electric-sql
 # ---------------------------------------------------------------------------------------------
 FROM node:22-bookworm-slim AS runtime
 
+# The pinned contract tag, baked in at build time. CONTRACTS_VERSION lives at the branch root —
+# one level above this build context — so a running container has no file to read and would report
+# `contractsVersion: "unknown"`, quietly defeating the point of publishing the field at all.
+#   docker build --build-arg CONTRACTS_VERSION="$(cat ../CONTRACTS_VERSION)" -t … .
+ARG CONTRACTS_VERSION=unknown
+
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    CONTRACTS_VERSION=${CONTRACTS_VERSION}
 
 WORKDIR /app
 

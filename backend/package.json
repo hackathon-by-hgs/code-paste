@@ -9,8 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
-    "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "start": "node --env-file-if-exists=../.env dist/main.js",
+    "start:dev": "node --env-file-if-exists=../.env node_modules/ts-node-dev/lib/bin.js --respawn --transpile-only src/main.ts",
     "format": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",

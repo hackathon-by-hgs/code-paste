@@ -75,8 +75,16 @@ export class ProtocolService {
 /**
  * Reads the pinned contract tag so a running instance can report which contract it was built
  * against. Makes contract drift observable at runtime instead of theoretical.
+ *
+ * The environment variable comes first because `CONTRACTS_VERSION` lives at the branch root, one
+ * level above the Docker build context — so a container has no file to read and every deployed
+ * instance reported "unknown", quietly defeating the point of publishing the field at all. The
+ * image bakes it in at build time from the same file.
  */
-function readContractsVersion(): string {
+export function readContractsVersion(): string {
+  const fromEnv = process.env.CONTRACTS_VERSION?.trim();
+  if (fromEnv) return fromEnv;
+
   for (const candidate of [
     join(__dirname, '../../../CONTRACTS_VERSION'),
     join(__dirname, '../../CONTRACTS_VERSION'),
