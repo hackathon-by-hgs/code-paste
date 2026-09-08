@@ -32,6 +32,60 @@ describe('loadConfig', () => {
     }
   });
 
+  describe('CORS allowlist', () => {
+    it('includes the deployed web app and local development by default', () => {
+      const origins = loadConfig(base).cors.allowedOrigins;
+      expect(origins).toContain('https://code-paste-1.onrender.com');
+      expect(origins).toContain('http://localhost:5173');
+    });
+
+    it('parses a comma-separated list and trims whitespace', () => {
+      const origins = loadConfig({
+        ...base,
+        CORS_ALLOWED_ORIGINS: ' https://a.example , https://b.example ',
+      }).cors.allowedOrigins;
+      expect(origins).toEqual(['https://a.example', 'https://b.example']);
+    });
+
+    it('normalises each entry to a bare origin', () => {
+      // A browser's Origin header never carries a path, so an entry with one would never match.
+      const origins = loadConfig({
+        ...base,
+        CORS_ALLOWED_ORIGINS: 'https://a.example/some/path,https://b.example:443/',
+      }).cors.allowedOrigins;
+      expect(origins).toEqual(['https://a.example', 'https://b.example']);
+    });
+
+    it('de-duplicates', () => {
+      const origins = loadConfig({
+        ...base,
+        CORS_ALLOWED_ORIGINS: 'https://a.example,https://a.example/',
+      }).cors.allowedOrigins;
+      expect(origins).toEqual(['https://a.example']);
+    });
+
+    it('refuses a wildcard outright', () => {
+      // `*` is indistinguishable from having no policy, so it is a configuration error rather
+      // than a permissive setting.
+      expect(() => loadConfig({ ...base, CORS_ALLOWED_ORIGINS: '*' })).toThrow(/not permitted/);
+      expect(() => loadConfig({ ...base, CORS_ALLOWED_ORIGINS: 'https://a.example,*' })).toThrow(
+        /not permitted/,
+      );
+    });
+
+    it('refuses a malformed origin rather than silently dropping it', () => {
+      // A dropped origin surfaces much later as an inexplicable browser failure.
+      expect(() => loadConfig({ ...base, CORS_ALLOWED_ORIGINS: 'code-paste-1.onrender.com' })).toThrow(
+        /invalid origin/,
+      );
+    });
+
+    it('allows an explicit empty list, locking browsers out entirely', () => {
+      // Valid for a deployment with no web client: every browser request is refused.
+      expect(loadConfig({ ...base, CORS_ALLOWED_ORIGINS: '' }).cors.allowedOrigins).toEqual([]);
+    });
+  });
+
   it('treats an empty environment variable as unset', () => {
     // "Set but empty" is the normal result of a shell default, a CI expression evaluating to '',
     // or a .env line with nothing after the '='. Refusing to start on that is a footgun — and it

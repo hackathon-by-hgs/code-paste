@@ -30,6 +30,17 @@ const schema = z
     DATABASE_URL: optionalEnv(z.string().url().optional()),
     DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
+    /**
+     * Comma-separated exact origins allowed to call the API from a browser.
+     *
+     * An allowlist, never `*` and never reflected back from the request. Reflecting an arbitrary
+     * `Origin` is the same as having no policy at all, and it is the usual way a CORS
+     * configuration becomes decorative.
+     */
+    CORS_ALLOWED_ORIGINS: z
+      .string()
+      .default('http://localhost:5173,http://localhost:3000,https://code-paste-1.onrender.com'),
+
     AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters.'),
     AUTH_JWT_ISSUER: z.string().min(1).default('code-paste-control-plane'),
     AUTH_JWT_AUDIENCE: z.string().min(1).default('code-paste-clients'),
@@ -98,6 +109,7 @@ export interface AppConfig {
   logLevel: RawConfig['LOG_LEVEL'];
   isProduction: boolean;
   database: { url?: string; poolMax: number };
+  cors: { allowedOrigins: string[] };
   auth: {
     jwtSecret: string;
     issuer: string;
@@ -132,6 +144,39 @@ export interface AppConfig {
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
+/**
+ * Parses the CORS allowlist into exact, normalised origins.
+ *
+ * Each entry is reduced to `scheme://host[:port]` — a browser's `Origin` header never carries a
+ * path, so comparing against anything longer would silently never match. A malformed entry is a
+ * configuration error and stops the process, because a silently-dropped origin presents as an
+ * inexplicable browser failure much later.
+ */
+function parseOrigins(raw: string): string[] {
+  const origins = raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .map((value) => {
+      if (value === '*') {
+        throw new Error(
+          'Invalid configuration:\n  CORS_ALLOWED_ORIGINS must list exact origins; "*" is not permitted.',
+        );
+      }
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        throw new Error(
+          `Invalid configuration:\n  CORS_ALLOWED_ORIGINS contains an invalid origin: ${value}`,
+        );
+      }
+      return url.origin;
+    });
+
+  return [...new Set(origins)];
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
@@ -151,6 +196,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: c.LOG_LEVEL,
     isProduction: c.NODE_ENV === 'production',
     database: { url: c.DATABASE_URL, poolMax: c.DATABASE_POOL_MAX },
+    cors: { allowedOrigins: parseOrigins(c.CORS_ALLOWED_ORIGINS) },
     auth: {
       jwtSecret: c.AUTH_JWT_SECRET,
       issuer: c.AUTH_JWT_ISSUER,

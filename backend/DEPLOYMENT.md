@@ -42,6 +42,30 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # 
 
 Every other variable has a safe default; `.env.example` at the branch root documents all of them.
 
+### CORS
+
+```bash
+CORS_ALLOWED_ORIGINS=https://code-paste-1.onrender.com
+```
+
+A comma-separated allowlist of **exact origins**. Scheme and port are part of the match, so
+`http://` and `https://` of the same host are different entries. `*` is rejected at startup rather
+than accepted as a permissive setting — it is indistinguishable from having no policy at all. A
+malformed entry also stops the process, because an origin silently dropped at boot surfaces much
+later as an inexplicable browser failure.
+
+The default covers local development plus the deployed web app. **Set it explicitly per
+environment**; a production API should not be carrying development origins.
+
+**Web clients must not set `withCredentials` / `credentials: 'include'`.**
+`Access-Control-Allow-Credentials` is deliberately off: authentication is a Bearer token the app
+attaches explicitly (ADR-004), so there are no cookies and no ambient credentials for a cross-site
+request to ride on. That is what makes this API structurally immune to CSRF, and turning
+credentials on would give that up for nothing.
+
+The **WebSocket handshake is exempt from CORS in the browser**, so `/v1/realtime` checks `Origin`
+itself: absent (a native agent) is allowed; present must be on the same allowlist.
+
 ### How configuration is loaded
 
 `npm start` and `npm run start:dev` read `.env` from the **branch root** using Node's built-in

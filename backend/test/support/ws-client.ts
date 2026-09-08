@@ -19,6 +19,8 @@ export interface TestSocket {
 
 export interface ConnectOptions {
   token?: string;
+  /** Sends an Origin header, as a browser would. Native agents send none. */
+  origin?: string;
   /** Sends the token via the WebSocket subprotocol instead of the Authorization header. */
   useSubprotocol?: boolean;
   path?: string;
@@ -31,7 +33,10 @@ export function connect(port: number, options: ConnectOptions = {}): Promise<Tes
     options.useSubprotocol && options.token
       ? new WebSocket(url, [`bearer.${options.token}`])
       : new WebSocket(url, {
-          headers: options.token ? { Authorization: `Bearer ${options.token}` } : {},
+          headers: {
+            ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+            ...(options.origin ? { Origin: options.origin } : {}),
+          },
         });
 
   const client: TestSocket = {

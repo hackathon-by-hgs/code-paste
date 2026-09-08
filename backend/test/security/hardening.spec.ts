@@ -631,5 +631,21 @@ describe('hardening', () => {
       expect(res.headers['x-content-type-options']).toBe('nosniff');
       expect(res.headers['x-frame-options']).toBeDefined();
     });
+
+    it('sends a deny-by-default Content-Security-Policy', async () => {
+      // The service returns JSON, so a CSP constrains nothing today — which is precisely why it
+      // must not be disabled. Anything ever rendered here (a framework error page, a future docs
+      // route) then starts from deny rather than from whatever the browser defaults to.
+      const res = await request(server()).get('/v1/health').expect(200);
+      const csp = res.headers['content-security-policy'];
+
+      expect(csp).toBeDefined();
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).toContain("base-uri 'none'");
+      // Never a policy that permits inline script — the failure mode of a copy-pasted CSP.
+      expect(csp).not.toContain("'unsafe-inline'");
+      expect(csp).not.toContain("'unsafe-eval'");
+    });
   });
 });
