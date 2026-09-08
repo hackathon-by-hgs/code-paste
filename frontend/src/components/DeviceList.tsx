@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useDevices } from '../features/devices/DevicesProvider';
 import type { Device } from '../api/types';
+import { AGENT_DOWNLOAD_URL } from '../lib/agent';
 import { relativeTime } from '../lib/time';
 import { PairDeviceCard } from './PairDeviceCard';
 
@@ -90,9 +91,20 @@ export const DeviceList = () => {
             <DeviceRow key={device.id} device={device} />
           ))}
           {devices.length === 0 && !error && (
-            <li className="py-3 text-sm text-neutral-500">
-              No devices registered. Clipboard syncing needs the desktop agent running on each
-              machine — this page pairs and manages them, but never moves clipboard content itself.
+            <li className="py-3 text-sm text-neutral-500 flex flex-col gap-2">
+              <span>
+                No devices registered. Clipboard syncing needs the desktop agent running on each
+                machine — this page pairs and manages them, but never moves clipboard content
+                itself.
+              </span>
+              <a
+                href={AGENT_DOWNLOAD_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white underline underline-offset-2 hover:text-neutral-300 self-start"
+              >
+                Download the agent →
+              </a>
             </li>
           )}
         </ul>

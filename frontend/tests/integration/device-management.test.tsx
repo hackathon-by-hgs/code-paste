@@ -124,6 +124,18 @@ describe('Device Management Integration', () => {
     expect(createPairingCode).toHaveBeenCalledTimes(1);
   });
 
+  it('points a user with no devices at the agent download', async () => {
+    // The web app mints codes but cannot install anything. Without this link
+    // the flow dead-ends: a pairing code and nothing to type it into.
+    vi.mocked(getDevices).mockResolvedValue([]);
+
+    renderList();
+    await waitFor(() => expect(screen.getByText(/No devices registered/i)).toBeDefined());
+
+    const link = screen.getByRole('link', { name: /Download the agent/i });
+    expect(link.getAttribute('href')).toContain('releases');
+  });
+
   it('surfaces a load failure instead of rendering an empty list', async () => {
     vi.mocked(getDevices).mockRejectedValue(new Error('boom'));
 

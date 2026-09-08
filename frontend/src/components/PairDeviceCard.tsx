@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { createPairingCode } from '../api/devices';
 import type { PairingCode } from '../api/types';
+import { AGENT_DOWNLOAD_URL } from '../lib/agent';
 import { isApiError, messageFor } from '../lib/errors';
 import { formatCountdown, secondsUntil } from '../lib/time';
 
@@ -81,7 +82,16 @@ export const PairDeviceCard = ({ onDismiss }: { onDismiss: () => void }) => {
         <>
           <p className="font-mono text-3xl tracking-[0.3em] select-all">{pairing.code}</p>
           <p className="text-xs text-neutral-400">
-            Run this on the device you are adding:
+            Run this in a terminal on the device you are adding —{' '}
+            <a
+              href={AGENT_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-white underline underline-offset-2 hover:text-neutral-300"
+            >
+              download the agent
+            </a>{' '}
+            first if it is not installed there.
           </p>
           <code className="block bg-neutral-900 border border-white/20 px-2 py-1.5 text-xs font-mono break-all">
             agent pair {pairing.code}
