@@ -63,11 +63,21 @@ func run() error {
 		if len(os.Args) < 3 {
 			return errors.New("usage: agent pair <PAIRING-CODE> [device name]")
 		}
+		code := strings.ToUpper(strings.TrimSpace(os.Args[2]))
+
+		// A session id means the user copied from the sharing panel. The join
+		// code beside it is the same 8-character alphabet as a pairing code, so
+		// nothing about the code itself would catch the mistake — say so here
+		// rather than letting the server answer with a bare 401.
+		if strings.HasPrefix(strings.ToLower(code), "cp_ses_") {
+			return errors.New("that is a share-session id, not a pairing code — mint one under \"My Devices\" in the web app")
+		}
+
 		name := defaultDeviceName()
 		if len(os.Args) > 3 {
 			name = strings.Join(os.Args[3:], " ")
 		}
-		if err := agent.Pair(ctx, strings.ToUpper(os.Args[2]), name); err != nil {
+		if err := agent.Pair(ctx, code, name); err != nil {
 			return err
 		}
 		fmt.Println("Paired. Run `agent run` to start.")
@@ -95,7 +105,30 @@ func run() error {
 			}
 			return err
 		}
-		fmt.Printf("Paired. State file: %s\n", store.Path())
+		fmt.Printf("Paired.\n  device      %s\n  fingerprint %s\n  state file  %s\n",
+			agent.DeviceID(), agent.Fingerprint(), store.Path())
+		return nil
+
+	case "peers":
+		if err := agent.Load(); err != nil {
+			if errors.Is(err, daemon.ErrNotPaired) {
+				return errors.New("not paired — run: agent pair <CODE>")
+			}
+			return err
+		}
+		roster, err := agent.FetchRoster(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Roster version %d, expires %s\n", roster.RosterVersion, roster.ExpiresAt)
+		if len(roster.Peers) == 0 {
+			fmt.Println("No peers. Pair another device to this account.")
+			return nil
+		}
+		fmt.Printf("%d peer(s) authorised to exchange clipboard data:\n", len(roster.Peers))
+		for _, p := range roster.Peers {
+			fmt.Printf("  %s  %-8s  %s  scope=%s\n", p.DeviceID, p.Platform, p.KeyFingerprint, p.Scope)
+		}
 		return nil
 
 	default:
@@ -109,7 +142,11 @@ func usage() {
 
   agent pair <PAIRING-CODE> [device name]   redeem a code minted in the web app
   agent run                                 maintain authorization
+  agent peers                               who may receive this clipboard
   agent status                              show local pairing state
+
+The pairing code comes from "My Devices" in the web app, NOT the session join
+code shown beside a Session ID in the sharing panel — the two look identical.
 
 Environment: see .env.example (CODEPASTE_API_URL is required).
 `)

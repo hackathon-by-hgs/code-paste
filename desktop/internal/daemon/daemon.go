@@ -140,8 +140,8 @@ func (a *Agent) PersistTokens(tokens controlplane.Tokens) {
 	}
 }
 
-// Run maintains authorization until ctx is cancelled.
-func (a *Agent) Run(ctx context.Context) error {
+// prepare confirms we hold a device token and installs the roster signing keys.
+func (a *Agent) prepare(ctx context.Context) error {
 	if a.identity == nil {
 		return ErrNotPaired
 	}
@@ -162,6 +162,38 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 	if err := a.verifier.TrustKeys(keys); err != nil {
 		return fmt.Errorf("trust roster signing keys: %w", err)
+	}
+	return nil
+}
+
+// FetchRoster does one verified roster fetch and returns it.
+//
+// This is the "who can receive my clipboard data" answer, for operators.
+func (a *Agent) FetchRoster(ctx context.Context) (*controlplane.PeerRoster, error) {
+	if err := a.prepare(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := a.refreshRoster(ctx); err != nil {
+		return nil, err
+	}
+	return a.roster, nil
+}
+
+// DeviceID is this agent's device id.
+func (a *Agent) DeviceID() string { return a.deviceID }
+
+// Fingerprint is this agent's own key fingerprint.
+func (a *Agent) Fingerprint() string {
+	if a.identity == nil {
+		return ""
+	}
+	return a.identity.Fingerprint()
+}
+
+// Run maintains authorization until ctx is cancelled.
+func (a *Agent) Run(ctx context.Context) error {
+	if err := a.prepare(ctx); err != nil {
+		return err
 	}
 
 	go a.heartbeatLoop(ctx)
