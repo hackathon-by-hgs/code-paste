@@ -225,6 +225,18 @@ scans every table as text for a sentinel, so a future relay or debug column woul
 - [ ] Decide whether `/v1/health` should be documented in the OpenAPI contract or stay
       deployment-internal (the conformance test currently exempts it explicitly).
 
+## Deployment
+
+`backend/DEPLOYMENT.md` is the guide: requirements, configuration, reverse-proxy setup,
+health/migrations/restarts, scaling, key rotation, backups and a pre-launch security checklist.
+`backend/Dockerfile` and `backend/docker-compose.yml` are the artifacts, and the `docker` CI job
+builds the image and runs it against a real PostgreSQL on every push — asserting it reports the
+`postgres` driver and the correct pinned contract version, and that a real signup succeeds.
+
+Two things to know before deploying: run **one** instance (limitation #3), and treat
+`ROSTER_SIGNING_SECRET_KEY` as durable infrastructure — losing it stops every agent in the field
+from verifying its cached roster until each one re-fetches.
+
 ## Integration notes
 
 **Contract:** `CONTRACTS_VERSION` pins `protocol-v1.0.0`. The running server reports its pin at
