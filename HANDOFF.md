@@ -174,20 +174,26 @@ scans every table as text for a sentinel, so a future relay or debug column woul
 
    *(The original limitation here — "the production `pg` driver is unverified" — is now closed: the
    `postgres` CI leg runs every suite against a real PostgreSQL 17 service container and passes.)*
-2. **Rate limiting and realtime state are in-process.** Correct for the single-instance MVP that
+2. **`npm run test:all` has shown a rare flake.** One run failed two share-session tests in
+   `hardening.spec.ts`; five subsequent runs of the same command passed 249/249, and the security
+   suite passes in isolation every time. Unreproduced, so recorded rather than claimed fixed. Note
+   that CI runs each project as a separate step and has never shown it. If it recurs, suspect
+   PGlite timing under a long single-process run -- the same class of issue as the pairing-race
+   ECONNRESET already worked around.
+3. **Rate limiting and realtime state are in-process.** Correct for the single-instance MVP that
    `SYSTEM_DESIGN.md` §22 calls for; a second instance needs a shared limiter store and either
    sticky sessions or socket fanout. The roster TTL means a missed push is a latency issue, never a
    security one, so horizontal scaling degrades gracefully rather than becoming unsafe.
-3. **Revocation has a bounded residual window** of one roster TTL (300 s default) for a device that
+4. **Revocation has a bounded residual window** of one roster TTL (300 s default) for a device that
    is offline from the realtime channel. Stated and accepted in ADR-003; tune `ROSTER_TTL_SECONDS`.
-4. **No password change or reset.** The `sv` (session version) claim is verified on every request
+5. **No password change or reset.** The `sv` (session version) claim is verified on every request
    and exists precisely to invalidate all outstanding tokens when that lands, but nothing bumps it
    today. Not in the OpenAPI contract, so it was out of scope rather than dropped.
-5. **`/signaling/*` is deliberately unimplemented.** `API_CONTRACTS.md` says not to build it until
+6. **`/signaling/*` is deliberately unimplemented.** `API_CONTRACTS.md` says not to build it until
    the LAN transport needs it.
-6. **Roster signing key rotation is supported but not automated.** Verifiers match on `keyId`;
+7. **Roster signing key rotation is supported but not automated.** Verifiers match on `keyId`;
    there is no rotation schedule or overlap window yet.
-7. **`isSessionActive` exists twice** — once in TypeScript for the join path and once as a SQL
+8. **`isSessionActive` exists twice** — once in TypeScript for the join path and once as a SQL
    predicate for the roster path. They must agree; both are covered by security tests, but a change
    to one needs a matching change to the other.
 
