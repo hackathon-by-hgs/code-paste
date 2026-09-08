@@ -47,8 +47,9 @@ against without discovering missing contracts later — and close the backend-ow
 
 ## Files changed
 
-Everything under `backend/`, plus `.github/workflows/backend-ci.yml`, `.env.example`,
-`CONTRACTS_VERSION`, `CLAUDE.md`, `README.md` and this file at the branch root.
+Everything under `backend/` (including `Dockerfile`, `docker-compose.yml` and `DEPLOYMENT.md`),
+plus `.github/workflows/backend-ci.yml`, `.env.example`, `CONTRACTS_VERSION`, `CLAUDE.md`,
+`README.md` and this file at the branch root.
 
 ## Architecture decisions
 

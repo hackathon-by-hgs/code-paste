@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { sql, type ExtractTablesWithRelations } from 'drizzle-orm';
 import { drizzle as drizzleNode, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { APP_CONFIG, type AppConfig } from '../config/configuration';
 import type * as PgModule from 'pg';
 import type * as PgliteModule from '@electric-sql/pglite';
+import type * as DrizzlePgliteModule from 'drizzle-orm/pglite';
 import { schema } from './schema';
 
 type Schema = typeof schema;
@@ -47,8 +47,19 @@ export class DatabaseService implements OnModuleDestroy {
       this.closeable = { close: () => pool.end() };
       this.driver = 'postgres';
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      /**
+       * Both the PGlite client and its Drizzle driver are required lazily, and that matters.
+       *
+       * `drizzle-orm/pglite` requires `@electric-sql/pglite` at module load, so a static import
+       * here would pull 25 MB of WebAssembly PostgreSQL into every production process — one that
+       * can never use it, because production refuses to start without DATABASE_URL. Loading both
+       * inside this branch keeps the dependency genuinely dev-and-test-only and lets a deployment
+       * prune it from the image.
+       */
+      /* eslint-disable @typescript-eslint/no-require-imports */
       const { PGlite } = require('@electric-sql/pglite') as typeof PgliteModule;
+      const { drizzle: drizzlePglite } = require('drizzle-orm/pglite') as typeof DrizzlePgliteModule;
+      /* eslint-enable @typescript-eslint/no-require-imports */
       const client = new PGlite();
       this.database = drizzlePglite(client, { schema });
       this.closeable = { close: () => client.close() };

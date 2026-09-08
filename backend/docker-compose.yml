@@ -1,0 +1,46 @@
+# Local and staging stack: control plane + PostgreSQL.
+#
+# Production deployments should point DATABASE_URL at a managed PostgreSQL rather than running
+# the database as a sibling container.
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: code_paste
+      POSTGRES_PASSWORD: local-dev-only
+      POSTGRES_DB: code_paste
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U code_paste -d code_paste']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  control-plane:
+    build:
+      context: .
+    # Node is PID 1 here; the init process reaps zombies and forwards signals so Nest's shutdown
+    # hooks actually run on `docker compose down`.
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://code_paste:local-dev-only@postgres:5432/code_paste
+      # Synthetic values for local use only. Generate real ones per environment -- see
+      # DEPLOYMENT.md. The app refuses to start in production with a placeholder secret.
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET, minimum 32 characters}
+      ROSTER_SIGNING_SECRET_KEY: ${ROSTER_SIGNING_SECRET_KEY:?set ROSTER_SIGNING_SECRET_KEY, 32 bytes base64}
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
