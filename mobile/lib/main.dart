@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const apiBaseUrl = 'https://api.code-paste.example/v1';
+    const apiBaseUrl = 'https://code-paste.onrender.com/v1';
 
     return MultiProvider(
       providers: [
