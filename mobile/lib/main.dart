@@ -9,6 +9,8 @@ import 'services/auth_service.dart';
 import 'services/api_client.dart';
 import 'services/peer_discovery_service.dart';
 import 'services/control_plane_service.dart';
+import 'services/device_management_service.dart';
+import 'services/sharing_service.dart';
 import 'services/clipboard_service.dart';
 import 'services/clipboard_sync_service.dart';
 import 'services/lan_transport_service.dart';
@@ -47,6 +49,16 @@ class MyApp extends StatelessWidget {
             apiClient: context.read<ApiClient>(),
             peerDiscovery: context.read<PeerDiscoveryService>(),
           ),
+        ),
+        // Device Management
+        Provider<DeviceManagementService>(
+          create: (context) =>
+              DeviceManagementServiceImpl(apiClient: context.read<ApiClient>()),
+        ),
+        // Sharing Sessions
+        Provider<SharingService>(
+          create: (context) =>
+              SharingServiceImpl(apiClient: context.read<ApiClient>()),
         ),
         // Clipboard
         Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),
