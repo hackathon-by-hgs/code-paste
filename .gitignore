@@ -1,4 +1,6 @@
-# Binaries
+# Binaries — build artefacts, never committed. Release builds go to /dist at the
+# branch root; `go build` output lands in /desktop/bin.
+/dist/
 /desktop/bin/
 /desktop/dist/
 *.exe
