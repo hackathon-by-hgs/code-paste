@@ -1,6 +1,6 @@
 name: Mobile CI
 
-# Belongs to the `mobile` branch only (DEV_GUIDE.md §6). Flutter / Dart, Android + iOS.
+# Belongs to the `mobile` branch only (DEV_GUIDE.md §6). Flutter / Dart and Android.
 
 on:
   push:
@@ -92,7 +92,6 @@ jobs:
           scopes: |
             mobile
             android
-            ios
             clipboard
             deps
             deps-dev
@@ -130,24 +129,6 @@ jobs:
           path: mobile/release-apks/
           if-no-files-found: error
           retention-days: 14
-
-  build-ios:
-    # iOS runs on macOS runners, which bill ~10× the minutes. Compile-only (no signing) as a
-    # regression check, and only on push to `mobile` (not on every PR) to keep PRs fast and cheap.
-    # Not a required merge gate.
-    if: github.event_name != 'pull_request'
-    runs-on: macos-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - name: Build iOS (no code signing)
-        run: flutter build ios --release --no-codesign
 
   release:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/mobile'
