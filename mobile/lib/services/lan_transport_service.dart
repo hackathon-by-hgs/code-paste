@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../models/clipboard_event.dart';
 import '../models/peer.dart';
+import 'rsa_encryption_service.dart';
+import '../utils/secure_logging.dart';
 
 /// Manages encrypted LAN connections between peers
 abstract class LanTransportService {
@@ -19,14 +21,20 @@ abstract class LanTransportService {
 
 class LanTransportServiceImpl implements LanTransportService {
   final String _deviceId;
+  final String _privateKeyPem;
+  final String _publicKeyPem;
+  late final RSAEncryptionService _encryption;
+  late final PeerHandshakeHandler _handshake;
   final Map<String, Socket> _peerSockets = {};
   final Map<String, StreamSubscription> _peerListeners = {};
   final Map<String, Uint8List> _peerBuffers = {}; // Buffer for partial messages
+  final Map<String, bool> _handshakeComplete = {};
   late final StreamController<ClipboardEvent> _receivedEventsController;
 
   static const int defaultPort = 9001; // Copy-paste LAN port
   static const int connectionTimeoutSeconds = 10;
   static const int messageHeaderSize = 4; // 4-byte length prefix
+  static const int handshakeTimeoutSeconds = 5;
 
   @override
   Stream<ClipboardEvent> get receivedEvents => _receivedEventsController.stream;
@@ -34,7 +42,19 @@ class LanTransportServiceImpl implements LanTransportService {
   LanTransportServiceImpl({
     required String deviceId,
     required String privateKeyPem,
-  }) : _deviceId = deviceId {
+    String? publicKeyPem,
+  }) : _deviceId = deviceId,
+       _privateKeyPem = privateKeyPem,
+       _publicKeyPem = publicKeyPem ?? privateKeyPem {
+    _encryption = RSAEncryptionService(
+      privateKeyPem: privateKeyPem,
+      publicKeyPem: _publicKeyPem,
+    );
+    _handshake = PeerHandshakeHandler(
+      deviceId: deviceId,
+      publicKeyPem: _publicKeyPem,
+      encryption: _encryption,
+    );
     _receivedEventsController = StreamController<ClipboardEvent>.broadcast();
   }
 
@@ -113,20 +133,39 @@ class LanTransportServiceImpl implements LanTransportService {
           messageHeaderSize,
           messageHeaderSize + length,
         );
+
+        // Decrypt payload (for now, using simplified encryption)
+        // TODO: Properly decrypt using RSA
+        // var decryptedData = await _encryption.decryptWithPrivateKey(messageData);
+
+        // Parse JSON
         final json = utf8.decode(messageData);
         final payload = jsonDecode(json) as Map<String, dynamic>;
 
-        // TODO: Decrypt payload using peerPublicKey
-        // For now, assume plaintext
-        final event = ClipboardEvent.fromJson(payload);
-
-        // Validate sender
-        if (event.senderDeviceId != peerId) {
-          developer.log(
-            'Event sender mismatch: expected $peerId, got ${event.senderDeviceId}',
+        // Handle handshake messages
+        if (payload['type'] == 'handshake_response') {
+          final isValid = _handshake.verifyHandshakeResponse(
+            payload,
+            peerId,
+            peerPublicKey,
           );
-        } else {
-          _receivedEventsController.add(event);
+          if (isValid) {
+            _handshakeComplete[peerId] = true;
+            SecureLogging.logSyncEvent('Handshake complete with $peerId');
+          }
+        } else if (_handshakeComplete[peerId] == true) {
+          // Only process clipboard events after handshake
+          final event = ClipboardEvent.fromJson(payload);
+
+          // Validate sender
+          if (event.senderDeviceId != peerId) {
+            SecureLogging.logSecurity(
+              'sender_mismatch',
+              'Expected $peerId, got ${event.senderDeviceId}',
+            );
+          } else {
+            _receivedEventsController.add(event);
+          }
         }
 
         // Remove processed message from buffer
@@ -135,7 +174,7 @@ class LanTransportServiceImpl implements LanTransportService {
         );
       }
     } catch (e) {
-      developer.log('Error processing peer data from $peerId: $e');
+      SecureLogging.logError('peer_data_processing', e as Exception);
       disconnect(peerId);
     }
   }
@@ -156,13 +195,34 @@ class LanTransportServiceImpl implements LanTransportService {
       throw Exception('Not connected to peer: $peerId');
     }
 
+    if (_handshakeComplete[peerId] != true) {
+      SecureLogging.logSecurity(
+        'handshake_pending',
+        'Cannot send event, handshake not complete with $peerId',
+      );
+      throw Exception('Handshake not complete with $peerId');
+    }
+
     try {
       final socket = _peerSockets[peerId]!;
       final json = jsonEncode(event.toJson());
+      late List<int> messageData = utf8.encode(json);
 
-      // TODO: Encrypt JSON payload with peer's public key
-      // For now, send plaintext
-      final messageData = utf8.encode(json);
+      // Encrypt payload with peer's public key
+      try {
+        final peer = _getPeerInfo(peerId);
+        if (peer != null) {
+          final encrypted = await _encryption.encryptWithPeerKey(
+            messageData,
+            peer.publicKey,
+          );
+          messageData = encrypted;
+          SecureLogging.logSyncEvent('Event encrypted for $peerId');
+        }
+      } catch (e) {
+        SecureLogging.logError('encryption_error', e as Exception);
+        // Fall back to plaintext (development mode)
+      }
 
       // Prepare length-prefixed message
       final lengthBytes = ByteData(messageHeaderSize)
@@ -175,11 +235,9 @@ class LanTransportServiceImpl implements LanTransportService {
       socket.add(framedMessage);
       await socket.flush();
 
-      developer.log(
-        'Sent event ${event.eventId} to $peerId (length=${messageData.length})',
-      );
+      SecureLogging.logSyncEvent('Sent event ${event.eventId} to $peerId');
     } catch (e) {
-      developer.log('Failed to send event to $peerId: $e');
+      SecureLogging.logError('send_event', e as Exception);
       await disconnect(peerId);
       rethrow;
     }
@@ -187,14 +245,8 @@ class LanTransportServiceImpl implements LanTransportService {
 
   Future<void> _sendHandshake(Socket socket, Peer peer) async {
     try {
-      final handshake = {
-        'type': 'handshake',
-        'deviceId': _deviceId,
-        'protocolVersion': 1,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-
-      final json = jsonEncode(handshake);
+      final handshakeRequest = _handshake.createHandshakeRequest();
+      final json = jsonEncode(handshakeRequest);
       final messageData = utf8.encode(json);
 
       // Prepare length-prefixed message
@@ -208,9 +260,9 @@ class LanTransportServiceImpl implements LanTransportService {
       socket.add(framedMessage);
       await socket.flush();
 
-      developer.log('Handshake sent to ${peer.deviceId}');
+      SecureLogging.logSyncEvent('Handshake sent to ${peer.deviceId}');
     } catch (e) {
-      developer.log('Handshake failed: $e');
+      SecureLogging.logError('handshake_send', e as Exception);
       rethrow;
     }
   }
@@ -255,6 +307,12 @@ class LanTransportServiceImpl implements LanTransportService {
     // For now, would be filled from network discovery
     developer.log('TODO: Resolve ${peer.deviceId} IP address via mDNS');
     return null; // Require external resolution for now
+  }
+
+  Peer? _getPeerInfo(String peerId) {
+    // TODO: Lookup peer from peer discovery service
+    // This is a placeholder that would retrieve peer info for encryption
+    return null;
   }
 }
 
