@@ -91,6 +91,33 @@ class HomeProvider extends ChangeNotifier {
 
       _permissionStatus = PermissionStatus.granted;
 
+      // Load and set bearer token from auth service
+      try {
+        final tokens = await authService.getStoredTokens();
+        if (tokens != null && tokens.isValid) {
+          developer.log('Bearer token loaded from storage');
+        } else {
+          developer.log('No valid token found - user may need to login');
+          _state = AppLifecycleState.ready;
+          _error = AppError(
+            message: 'Not Authenticated',
+            details: 'Please log in first',
+            recoverable: true,
+          );
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        developer.log('Failed to load tokens: $e');
+        _error = AppError(
+          message: 'Authentication Error',
+          details: 'Could not load credentials: $e',
+          recoverable: true,
+        );
+        notifyListeners();
+        return;
+      }
+
       // Haptic feedback: success
       await HapticFeedback.mediumImpact();
 
