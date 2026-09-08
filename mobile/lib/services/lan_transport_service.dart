@@ -20,8 +20,6 @@ abstract class LanTransportService {
 }
 
 class LanTransportServiceImpl implements LanTransportService {
-  final String _deviceId;
-  final String _privateKeyPem;
   final String _publicKeyPem;
   late final RSAEncryptionService _encryption;
   late final PeerHandshakeHandler _handshake;
@@ -43,9 +41,7 @@ class LanTransportServiceImpl implements LanTransportService {
     required String deviceId,
     required String privateKeyPem,
     String? publicKeyPem,
-  }) : _deviceId = deviceId,
-       _privateKeyPem = privateKeyPem,
-       _publicKeyPem = publicKeyPem ?? privateKeyPem {
+  }) : _publicKeyPem = publicKeyPem ?? privateKeyPem {
     _encryption = RSAEncryptionService(
       privateKeyPem: privateKeyPem,
       publicKeyPem: _publicKeyPem,

@@ -89,10 +89,7 @@ class RSAEncryptionService {
   /// Generate random IV (initialization vector)
   Uint8List _generateIV() {
     final secureRandom = Random.secure();
-    final random = List<int>.generate(
-      16,
-      (_) => secureRandom.nextInt(256),
-    );
+    final random = List<int>.generate(16, (_) => secureRandom.nextInt(256));
     return Uint8List.fromList(random);
   }
 
@@ -236,10 +233,7 @@ class PeerHandshakeHandler {
   /// Generate random nonce for handshake
   String _generateNonce() {
     final secureRandom = Random.secure();
-    final random = List<int>.generate(
-      16,
-      (_) => secureRandom.nextInt(256),
-    );
+    final random = List<int>.generate(16, (_) => secureRandom.nextInt(256));
     return random.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 

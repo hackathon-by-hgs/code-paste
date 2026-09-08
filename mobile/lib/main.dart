@@ -64,16 +64,11 @@ class MyApp extends StatelessWidget {
         Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),
         // LAN Transport
         Provider<LanTransportService>(
-          create: (_) => LanTransportServiceImpl(
-            deviceId: '',
-            privateKeyPem: '',
-          ),
+          create: (_) =>
+              LanTransportServiceImpl(deviceId: '', privateKeyPem: ''),
         ),
         Provider<LanServerService>(
-          create: (_) => LanServerServiceImpl(
-            deviceId: '',
-            privateKeyPem: '',
-          ),
+          create: (_) => LanServerServiceImpl(deviceId: '', privateKeyPem: ''),
         ),
         Provider<TransportService>(
           create: (context) => TransportServiceImpl(
