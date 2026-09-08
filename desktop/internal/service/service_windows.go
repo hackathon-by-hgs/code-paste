@@ -31,10 +31,16 @@ import (
 
 const launcherName = "CodePasteAgent.vbs"
 
-// vbsTemplate runs the agent with the window hidden (0) and does not wait (False).
+// vbsTemplate runs the agent hidden (0) without waiting (False), routing output
+// to a log file.
+//
+// The redirect is why this goes through cmd rather than invoking the exe
+// directly: WScript.Shell.Run cannot redirect streams, and a background process
+// with nowhere to write its diagnostics is undebuggable — "it is not syncing"
+// with no way to find out why.
 const vbsTemplate = `' Code Paste clipboard agent — starts the background agent at login.
 ' Created by "agent install". Delete this file, or run "agent uninstall", to stop it.
-CreateObject("WScript.Shell").Run """%s"" run", 0, False
+CreateObject("WScript.Shell").Run "cmd /c """"%s"" run >> ""%s"" 2>&1""", 0, False
 `
 
 type windowsStartup struct{}
@@ -69,7 +75,12 @@ func (w windowsStartup) Install(execPath string) error {
 		return fmt.Errorf("create Startup folder: %w", err)
 	}
 
-	script := fmt.Sprintf(vbsTemplate, execPath)
+	log, err := logPath("")
+	if err != nil {
+		return err
+	}
+
+	script := fmt.Sprintf(vbsTemplate, execPath, log)
 	if err := os.WriteFile(path, []byte(script), 0o644); err != nil {
 		return fmt.Errorf("write startup launcher: %w", err)
 	}

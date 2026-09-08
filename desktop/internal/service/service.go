@@ -74,6 +74,16 @@ func ExecutablePath() (string, error) {
 	return filepath.Abs(path)
 }
 
+// LogPath is where the background service writes its output, for anyone asking
+// "why is it not syncing".
+func LogPath() string {
+	path, err := logPath("")
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
 // logPath is where the background service writes its output. A service with no
 // terminal needs somewhere to put diagnostics, or troubleshooting is guesswork.
 func logPath(stateDir string) (string, error) {

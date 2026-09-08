@@ -272,6 +272,10 @@ func printServiceStatus() {
 	fmt.Printf("Background: %s (%s)\n", state, manager.Describe())
 	if state == service.StateNotInstalled {
 		fmt.Println("  run: agent install   — to sync in the background and at every login")
+		return
+	}
+	if path := service.LogPath(); path != "" {
+		fmt.Printf("  log: %s\n", path)
 	}
 }
 
