@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -17,6 +18,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   @override
   void dispose() {
@@ -61,6 +64,15 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
+      // Validate email format
+      if (!email.contains('@') || !email.contains('.')) {
+        setState(() {
+          _errorMessage = 'Please enter a valid email address';
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Call signup API
       final apiClient = context.read<ApiClient>();
       await apiClient.post('/auth/signup', {
@@ -71,9 +83,26 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         context.go('/device-setup');
       }
+    } on ApiException catch (e) {
+      String errorMsg;
+      if (e.statusCode == 409) {
+        errorMsg =
+            'Email already registered. Please use a different email or try logging in.';
+      } else if (e.statusCode == 422) {
+        errorMsg = 'Invalid email or password. Please check and try again.';
+      } else if (e.statusCode == 429) {
+        errorMsg = 'Too many signup attempts. Please try again later.';
+      } else {
+        errorMsg = 'Signup error: ${e.message}';
+      }
+      setState(() {
+        _errorMessage = errorMsg;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage =
+            'Failed to create account. Please check your connection and try again.';
         _isLoading = false;
       });
     }
@@ -158,8 +187,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: _passwordController,
-                  placeholder: 'At least 8 characters',
-                  obscureText: true,
+                  placeholder: 'At least 12 characters',
+                  obscureText: !_showPassword,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
@@ -167,6 +196,22 @@ class _SignupScreenState extends State<SignupScreen> {
                   decoration: BoxDecoration(
                     border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffix: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showPassword = !_showPassword;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        _showPassword
+                            ? CupertinoIcons.eye_solid
+                            : CupertinoIcons.eye_slash,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -179,7 +224,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 CupertinoTextField(
                   controller: _confirmPasswordController,
                   placeholder: 'Confirm your password',
-                  obscureText: true,
+                  obscureText: !_showConfirmPassword,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
@@ -187,6 +232,22 @@ class _SignupScreenState extends State<SignupScreen> {
                   decoration: BoxDecoration(
                     border: Border.all(color: CupertinoColors.systemGrey4),
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffix: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showConfirmPassword = !_showConfirmPassword;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        _showConfirmPassword
+                            ? CupertinoIcons.eye_solid
+                            : CupertinoIcons.eye_slash,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),

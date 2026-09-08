@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/api_client.dart';
 
 class DeviceSetupScreen extends StatefulWidget {
   const DeviceSetupScreen({super.key});
@@ -52,7 +53,16 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
 
       if (pairingCode.length != 8) {
         setState(() {
-          _errorMessage = 'Pairing code must be exactly 8 characters';
+          _errorMessage =
+              'Pairing code must be exactly 8 characters (e.g., 1234-5678)';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (deviceName.length > 50) {
+        setState(() {
+          _errorMessage = 'Device name must be 50 characters or less';
           _isLoading = false;
         });
         return;
@@ -64,9 +74,26 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
       if (mounted) {
         context.go('/home');
       }
+    } on ApiException catch (e) {
+      String errorMsg;
+      if (e.statusCode == 400) {
+        errorMsg = 'Invalid pairing code format.';
+      } else if (e.statusCode == 404) {
+        errorMsg =
+            'Pairing code not found or expired. Please request a new one.';
+      } else if (e.statusCode == 409) {
+        errorMsg = 'Device already exists. Please use a different device name.';
+      } else {
+        errorMsg = '${e.message}';
+      }
+      setState(() {
+        _errorMessage = errorMsg;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage =
+            'Failed to register device. Check your connection and try again.';
         _isLoading = false;
       });
     }
