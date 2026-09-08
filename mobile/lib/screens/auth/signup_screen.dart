@@ -53,9 +53,9 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      if (password.length < 8) {
+      if (password.length < 12) {
         setState(() {
-          _errorMessage = 'Password must be at least 8 characters';
+          _errorMessage = 'Password must be at least 12 characters';
           _isLoading = false;
         });
         return;
