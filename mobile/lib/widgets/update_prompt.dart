@@ -40,9 +40,9 @@ class _UpdatePromptState extends State<UpdatePrompt> {
           Text(
             'Version ${widget.update.version} is now available',
             style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -54,8 +54,8 @@ class _UpdatePromptState extends State<UpdatePrompt> {
             child: Text(
               widget.update.releaseNotes,
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey,
+                fontSize: 13,
+                color: CupertinoColors.systemGrey,
               ),
             ),
           ),
@@ -70,10 +70,10 @@ class _UpdatePromptState extends State<UpdatePrompt> {
               child: Text(
                 'Critical Update - Please update immediately',
                 style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-                      fontSize: 12,
-                      color: CupertinoColors.systemRed,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  fontSize: 12,
+                  color: CupertinoColors.systemRed,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

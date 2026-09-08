@@ -70,8 +70,10 @@ class AppUpdateServiceImpl implements AppUpdateService {
         return AppUpdate(
           version: '1.1.0',
           buildNumber: '2',
-          releaseNotes: 'Bug fixes and performance improvements\n\n• Fixed clipboard sync issues\n• Improved peer discovery\n• Better error handling',
-          downloadUrl: 'https://github.com/hackathon-by-hgs/code-paste/releases/download/v1.1.0/app-1.1.0.apk',
+          releaseNotes:
+              'Bug fixes and performance improvements\n\n• Fixed clipboard sync issues\n• Improved peer discovery\n• Better error handling',
+          downloadUrl:
+              'https://github.com/hackathon-by-hgs/code-paste/releases/download/v1.1.0/app-1.1.0.apk',
           isCritical: false,
           releaseDate: DateTime.now(),
         );
@@ -79,14 +81,19 @@ class AppUpdateServiceImpl implements AppUpdateService {
 
       // Try to fetch from backend
       try {
-        final response = await _apiClient.get('/app/update-check', withAuth: false);
+        final response = await _apiClient.get(
+          '/app/update-check',
+          withAuth: false,
+        );
 
         if (response['updateAvailable'] != true) {
           SecureLogging.logSyncEvent('App is up to date');
           return null;
         }
 
-        final update = AppUpdate.fromJson(response['update'] as Map<String, dynamic>);
+        final update = AppUpdate.fromJson(
+          response['update'] as Map<String, dynamic>,
+        );
 
         if (isNewerVersion(packageInfo.version, update.version)) {
           SecureLogging.logSyncEvent('Update available: ${update.version}');
@@ -96,7 +103,9 @@ class AppUpdateServiceImpl implements AppUpdateService {
         return null;
       } catch (e) {
         // Backend endpoint not available yet - that's OK
-        SecureLogging.logSyncEvent('Update check failed (backend not ready): $e');
+        SecureLogging.logSyncEvent(
+          'Update check failed (backend not ready): $e',
+        );
         return null;
       }
     } catch (e) {
@@ -161,7 +170,9 @@ class AppUpdateServiceImpl implements AppUpdateService {
       final uri = Uri.parse(update.downloadUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        SecureLogging.logSyncEvent('Opened APK download: ${update.downloadUrl}');
+        SecureLogging.logSyncEvent(
+          'Opened APK download: ${update.downloadUrl}',
+        );
       }
     } catch (e) {
       SecureLogging.logError('android_update_install', e as Exception);
