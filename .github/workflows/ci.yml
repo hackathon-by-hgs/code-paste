@@ -1,0 +1,150 @@
+name: Desktop CI
+
+# Belongs to the `desktop` branch only (DEV_GUIDE.md §6). Go agent.
+
+on:
+  push:
+    # `refs/heads/desktop` exists, so a nested `desktop/*` ref is impossible
+    # (git D/F conflict). Feature branches are hyphenated, matching the other domains.
+    branches: [desktop, 'desktop-*', 'feat/desktop-*']
+  pull_request:
+    branches: [desktop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: desktop
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: desktop/go.sum
+
+      - name: Formatting
+        run: |
+          set -euo pipefail
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      # -race matters here: the client serialises token refresh across several
+      # concurrent loops, and a data race there means a revoked token family.
+      - name: Test
+        run: go test -race -count=1 ./...
+
+  cross-compile:
+    name: cross-compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: windows
+            goarch: amd64
+          - goos: linux
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: desktop/go.sum
+
+      # The agent ships to all three desktop platforms, so a build break on any
+      # of them must fail here rather than at release time.
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: go build -o /dev/null ./cmd/agent
+
+  contract-conformance:
+    name: contract-conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned contracts from main
+        working-directory: .
+        run: |
+          set -euo pipefail
+          contract_ref="$(cat CONTRACTS_VERSION)"
+          git fetch origin --tags --force
+          mkdir -p .contracts
+          git archive "$contract_ref" contracts | tar -x -C .contracts
+          echo "Pinned $contract_ref"
+
+      - name: Assert the consumed contracts are present and well-formed
+        working-directory: .
+        # The agent consumes both the control-plane API and the peer-roster
+        # schema. A broken or missing pin must fail here rather than surface as
+        # a runtime authorization failure on someone's laptop.
+        run: |
+          set -euo pipefail
+          spec=.contracts/contracts/openapi/control-plane.yaml
+          roster=.contracts/contracts/schema/peer-roster.schema.json
+          test -f "$spec"   || { echo "::error::pinned OpenAPI contract missing"; exit 1; }
+          test -f "$roster" || { echo "::error::pinned peer-roster schema missing"; exit 1; }
+          grep -q 'openapi: 3.1' "$spec" || { echo "::error::pinned OpenAPI is not 3.1"; exit 1; }
+          echo "Pinned control-plane and peer-roster contracts present."
+
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            test
+            chore
+            ci
+            build
+            perf
+            revert
+          scopes: |
+            desktop
+            agent

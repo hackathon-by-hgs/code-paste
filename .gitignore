@@ -1,0 +1,26 @@
+# Binaries
+/desktop/bin/
+/desktop/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and coverage output
+*.test
+*.out
+coverage.*
+
+# Env files — never commit real values
+.env
+.env.*
+!.env.example
+
+# Agent state: contains device credentials and cached rosters
+/desktop/.state/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
