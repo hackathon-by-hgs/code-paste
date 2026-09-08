@@ -64,6 +64,7 @@ const JoinForm = ({
         value={sessionId}
         onChange={(e) => setSessionId(e.target.value)}
         placeholder="Session ID (cp_ses_…)"
+        autoComplete="off"
         aria-label="Session ID"
         className={inputClass}
       />
@@ -267,13 +268,15 @@ export const SharingSession = () => {
 
           {joinCode && (
             <div className="border border-white/40 p-3 flex flex-col gap-1">
-              <p className="text-xs uppercase tracking-widest text-neutral-400">Join Code</p>
+              <p className="text-xs uppercase tracking-widest text-neutral-400">Session Join Code</p>
               <p className="font-mono text-2xl tracking-[0.3em] select-all">{joinCode}</p>
               <p className="text-xs text-neutral-400 break-all">
                 Session ID <span className="font-mono text-neutral-300">{session.id}</span>
               </p>
               <p className="text-xs text-neutral-600">
                 Shown once. Both values are needed to join, and neither can be retrieved later.
+                This is <strong className="text-neutral-500">not</strong> a device pairing code —
+                it invites a person, not a machine.
               </p>
             </div>
           )}

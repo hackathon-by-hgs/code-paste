@@ -91,7 +91,8 @@ export const DeviceList = () => {
           ))}
           {devices.length === 0 && !error && (
             <li className="py-3 text-sm text-neutral-500">
-              No devices registered. Pair one to start syncing.
+              No devices registered. Clipboard syncing needs the desktop agent running on each
+              machine — this page pairs and manages them, but never moves clipboard content itself.
             </li>
           )}
         </ul>

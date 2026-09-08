@@ -59,7 +59,7 @@ export const PairDeviceCard = ({ onDismiss }: { onDismiss: () => void }) => {
   return (
     <div className="border border-white/40 p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-4">
-        <p className="text-xs uppercase tracking-widest text-neutral-400">Pairing Code</p>
+        <p className="text-xs uppercase tracking-widest text-neutral-400">Device Pairing Code</p>
         <button
           type="button"
           onClick={onDismiss}
@@ -81,11 +81,18 @@ export const PairDeviceCard = ({ onDismiss }: { onDismiss: () => void }) => {
         <>
           <p className="font-mono text-3xl tracking-[0.3em] select-all">{pairing.code}</p>
           <p className="text-xs text-neutral-400">
-            Enter this in the agent on the device you are adding. Expires in{' '}
-            <span className="font-mono text-white">{formatCountdown(remaining)}</span>.
+            Run this on the device you are adding:
+          </p>
+          <code className="block bg-neutral-900 border border-white/20 px-2 py-1.5 text-xs font-mono break-all">
+            agent pair {pairing.code}
+          </code>
+          <p className="text-xs text-neutral-400">
+            Expires in <span className="font-mono text-white">{formatCountdown(remaining)}</span>.
+            Shown once and single-use — if you lose it, mint another.
           </p>
           <p className="text-xs text-neutral-600">
-            Shown once and single-use. If you lose it, mint another.
+            This is <strong className="text-neutral-400">not</strong> a session join code. It pairs a
+            device; it will not join a sharing session.
           </p>
         </>
       )}
