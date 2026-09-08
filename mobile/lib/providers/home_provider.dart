@@ -52,9 +52,6 @@ class HomeProvider extends ChangeNotifier {
     _state = AppLifecycleState.initializing;
     notifyListeners();
 
-    // Simulate initialization delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
     _state = AppLifecycleState.ready;
     _permissionStatus = PermissionStatus.notRequested;
     notifyListeners();

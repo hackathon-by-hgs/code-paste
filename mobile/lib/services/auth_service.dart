@@ -348,8 +348,8 @@ class AuthServiceImpl implements AuthService {
   }
 
   Uint8List _getRandomBytes(int count) {
-    final random = Random();
-    final bytes = List<int>.generate(count, (_) => random.nextInt(256));
+    final secureRandom = Random.secure();
+    final bytes = List<int>.generate(count, (_) => secureRandom.nextInt(256));
     return Uint8List.fromList(bytes);
   }
 

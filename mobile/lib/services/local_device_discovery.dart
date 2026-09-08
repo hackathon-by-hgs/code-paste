@@ -24,27 +24,11 @@ class LocalDeviceDiscoveryImpl implements LocalDeviceDiscovery {
   Future<List<Network>> discoverDevices() async {
     _discoveredDevices.clear();
 
-    // Simulate mDNS discovery by periodically scanning
-    _scanTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      // In a real implementation, this would use platform channels to:
-      // - iOS: NSNetServiceBrowser + NSNetService
-      // - Android: NsdManager
-      // For now, we simulate with mock devices
+    // Real mDNS discovery requires platform channels:
+    // - iOS: NSNetServiceBrowser + NSNetService
+    // - Android: NsdManager
+    // Currently returns empty - peer roster from backend is authoritative
 
-      final newDevice = _generateMockDevice();
-      if (newDevice != null &&
-          !_discoveredDevices.any((d) => d.id == newDevice.id)) {
-        _discoveredDevices.add(newDevice);
-        _discoveryStreamController.add(newDevice);
-      }
-
-      // Stop after finding a reasonable number of devices
-      if (_discoveredDevices.length >= 3) {
-        await stopDiscovery();
-      }
-    });
-
-    // Return immediately with empty list, stream will provide updates
     return _discoveredDevices;
   }
 

@@ -154,6 +154,8 @@ class LanServerServiceImpl implements LanServerService {
 
     _isRunning = false;
     await _serverSocket?.close();
+    _socketBuffers.clear();
+    await _incomingEventsController.close();
     developer.log('LAN server stopped');
   }
 }

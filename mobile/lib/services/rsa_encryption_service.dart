@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import '../utils/secure_logging.dart';
 
@@ -87,9 +88,10 @@ class RSAEncryptionService {
 
   /// Generate random IV (initialization vector)
   Uint8List _generateIV() {
+    final secureRandom = Random.secure();
     final random = List<int>.generate(
       16,
-      (_) => DateTime.now().microsecond % 256,
+      (_) => secureRandom.nextInt(256),
     );
     return Uint8List.fromList(random);
   }
@@ -233,9 +235,10 @@ class PeerHandshakeHandler {
 
   /// Generate random nonce for handshake
   String _generateNonce() {
+    final secureRandom = Random.secure();
     final random = List<int>.generate(
       16,
-      (_) => (DateTime.now().microsecond + DateTime.now().millisecond) % 256,
+      (_) => secureRandom.nextInt(256),
     );
     return random.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
