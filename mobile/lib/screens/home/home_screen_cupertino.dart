@@ -58,6 +58,11 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
         middle: Text(AppConfig.appName),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
+          onPressed: () => context.push('/sessions'),
+          child: const Icon(CupertinoIcons.person_2_fill, size: 22),
+        ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
           onPressed: () async {
             final authService = context.read<AuthService>();
             await authService.logout();
@@ -66,11 +71,6 @@ class _HomeScreenCupertinoState extends State<HomeScreenCupertino>
             }
           },
           child: const Icon(CupertinoIcons.square_arrow_left, size: 22),
-        ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => context.push('/sessions'),
-          child: const Icon(CupertinoIcons.person_2_fill, size: 22),
         ),
         backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
         border: null,

@@ -5,11 +5,7 @@ class UpdatePrompt extends StatefulWidget {
   final AppUpdate update;
   final Future<void> Function() onUpdate;
 
-  const UpdatePrompt({
-    super.key,
-    required this.update,
-    required this.onUpdate,
-  });
+  const UpdatePrompt({super.key, required this.update, required this.onUpdate});
 
   @override
   State<UpdatePrompt> createState() => _UpdatePromptState();

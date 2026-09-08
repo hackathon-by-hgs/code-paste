@@ -154,7 +154,10 @@ class ApiClient {
     return fallback;
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response, {bool withAuth = true}) {
+  Map<String, dynamic> _handleResponse(
+    http.Response response, {
+    bool withAuth = true,
+  }) {
     try {
       final body = response.body.isEmpty
           ? <String, dynamic>{}
@@ -168,7 +171,10 @@ class ApiClient {
           return body;
         case 400:
           throw ApiException(
-            message: _extractErrorMessage(body, 'Invalid request. Please check your input.'),
+            message: _extractErrorMessage(
+              body,
+              'Invalid request. Please check your input.',
+            ),
             statusCode: response.statusCode,
           );
         case 401:
@@ -176,17 +182,26 @@ class ApiClient {
             clearBearerToken();
           }
           throw ApiException(
-            message: _extractErrorMessage(body, 'Session expired. Please log in again.'),
+            message: _extractErrorMessage(
+              body,
+              'Session expired. Please log in again.',
+            ),
             statusCode: response.statusCode,
           );
         case 409:
           throw ApiException(
-            message: _extractErrorMessage(body, 'This resource already exists.'),
+            message: _extractErrorMessage(
+              body,
+              'This resource already exists.',
+            ),
             statusCode: response.statusCode,
           );
         case 422:
           throw ApiException(
-            message: _extractErrorMessage(body, 'Invalid data. Please check your input.'),
+            message: _extractErrorMessage(
+              body,
+              'Invalid data. Please check your input.',
+            ),
             statusCode: response.statusCode,
           );
         case 429:
@@ -204,15 +219,18 @@ class ApiClient {
           );
         default:
           throw ApiException(
-            message:
-                _extractErrorMessage(body, 'An error occurred. Please try again.'),
+            message: _extractErrorMessage(
+              body,
+              'An error occurred. Please try again.',
+            ),
             statusCode: response.statusCode,
           );
       }
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(
-        message: 'Unable to process response. Please check your connection and try again.',
+        message:
+            'Unable to process response. Please check your connection and try again.',
         originalError: e,
       );
     }

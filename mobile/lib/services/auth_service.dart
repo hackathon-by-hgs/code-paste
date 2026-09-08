@@ -183,9 +183,13 @@ class AuthServiceImpl implements AuthService {
       return tokens;
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        throw Exception('Invalid email or password. Please check and try again.');
+        throw Exception(
+          'Invalid email or password. Please check and try again.',
+        );
       } else if (e.statusCode == 422) {
-        throw Exception('Email format is invalid. Please check your email address.');
+        throw Exception(
+          'Email format is invalid. Please check your email address.',
+        );
       } else if (e.statusCode == 429) {
         throw Exception('Too many login attempts. Please try again later.');
       }
@@ -193,7 +197,9 @@ class AuthServiceImpl implements AuthService {
     } on FormatException {
       throw Exception('Invalid login response from server. Please try again.');
     } catch (e) {
-      throw Exception('Login failed: Unable to connect to server. Check your internet connection.');
+      throw Exception(
+        'Login failed: Unable to connect to server. Check your internet connection.',
+      );
     }
   }
 
@@ -374,15 +380,21 @@ class AuthServiceImpl implements AuthService {
       if (e.statusCode == 400) {
         throw Exception('Invalid pairing code. Please check and try again.');
       } else if (e.statusCode == 404) {
-        throw Exception('Pairing code not found or expired. Please request a new one.');
+        throw Exception(
+          'Pairing code not found or expired. Please request a new one.',
+        );
       } else if (e.statusCode == 409) {
-        throw Exception('Device already registered. Please try a different device name.');
+        throw Exception(
+          'Device already registered. Please try a different device name.',
+        );
       }
       throw Exception('Device registration failed: ${e.message}');
     } on FormatException {
       throw Exception('Invalid response from server. Please try again.');
     } catch (e) {
-      throw Exception('Device registration failed. Check your internet connection and try again.');
+      throw Exception(
+        'Device registration failed. Check your internet connection and try again.',
+      );
     }
   }
 

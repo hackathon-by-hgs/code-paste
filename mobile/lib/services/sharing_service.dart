@@ -20,7 +20,9 @@ class SharingServiceImpl implements SharingService {
   Future<List<ShareSession>> listSessions({String? status}) async {
     try {
       SecureLogging.logSyncEvent('Fetching share sessions');
-      final path = status != null ? '/share-sessions?status=$status' : '/share-sessions';
+      final path = status != null
+          ? '/share-sessions?status=$status'
+          : '/share-sessions';
       final response = await _apiClient.get(path, withAuth: true);
 
       final rawList = response['data'] ?? response['sessions'];
@@ -33,7 +35,10 @@ class SharingServiceImpl implements SharingService {
           .map((s) => ShareSession.fromJson(s))
           .toList();
     } catch (e) {
-      SecureLogging.logError('list_sessions', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'list_sessions',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -49,7 +54,10 @@ class SharingServiceImpl implements SharingService {
 
       return ShareSession.fromJson(response);
     } catch (e) {
-      SecureLogging.logError('get_session', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'get_session',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -67,7 +75,10 @@ class SharingServiceImpl implements SharingService {
 
       return ShareSession.fromJson(response);
     } catch (e) {
-      SecureLogging.logError('create_session', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'create_session',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -76,7 +87,9 @@ class SharingServiceImpl implements SharingService {
   Future<ShareSession> joinSession(String sessionId, String joinCode) async {
     try {
       SecureLogging.logSyncEvent('Joining session: $sessionId');
-      final sanitizedCode = joinCode.replaceAll(RegExp(r'[\s-]'), '').toUpperCase();
+      final sanitizedCode = joinCode
+          .replaceAll(RegExp(r'[\s-]'), '')
+          .toUpperCase();
       final response = await _apiClient.post(
         '/share-sessions/$sessionId/join',
         {'joinCode': sanitizedCode},
@@ -84,7 +97,10 @@ class SharingServiceImpl implements SharingService {
       );
       return ShareSession.fromJson(response);
     } catch (e) {
-      SecureLogging.logError('join_session', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'join_session',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -99,7 +115,10 @@ class SharingServiceImpl implements SharingService {
         withAuth: true,
       );
     } catch (e) {
-      SecureLogging.logError('leave_session', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'leave_session',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -118,7 +137,10 @@ class SharingServiceImpl implements SharingService {
       );
       return ShareSession.fromJson(response);
     } catch (e) {
-      SecureLogging.logError('revoke_member', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'revoke_member',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -137,7 +159,10 @@ class SharingServiceImpl implements SharingService {
       );
       return ShareSession.fromJson(response);
     } catch (e) {
-      SecureLogging.logError('expire_session', e is Exception ? e : Exception(e.toString()));
+      SecureLogging.logError(
+        'expire_session',
+        e is Exception ? e : Exception(e.toString()),
+      );
       rethrow;
     }
   }
@@ -225,7 +250,9 @@ class ShareSession {
     return ShareSession(
       id: (json['id'] ?? '') as String,
       ownerUserId: (json['ownerUserId'] ?? json['createdBy'] ?? '') as String,
-      status: (json['status'] ?? (json['isActive'] == false ? 'expired' : 'active')) as String,
+      status:
+          (json['status'] ?? (json['isActive'] == false ? 'expired' : 'active'))
+              as String,
       expiresAt: json['expiresAt'] != null
           ? DateTime.parse(json['expiresAt'] as String)
           : DateTime.now().add(const Duration(hours: 1)),
@@ -252,9 +279,7 @@ class CreateSessionRequest {
   final int expiresInSeconds;
 
   CreateSessionRequest({int? expiresInSeconds, Duration? expiresIn})
-      : expiresInSeconds = expiresInSeconds ?? expiresIn?.inSeconds ?? 3600;
+    : expiresInSeconds = expiresInSeconds ?? expiresIn?.inSeconds ?? 3600;
 
-  Map<String, dynamic> toJson() => {
-    'expiresInSeconds': expiresInSeconds,
-  };
+  Map<String, dynamic> toJson() => {'expiresInSeconds': expiresInSeconds};
 }
