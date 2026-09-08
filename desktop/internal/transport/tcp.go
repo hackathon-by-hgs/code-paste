@@ -143,16 +143,28 @@ func (t *TCP) Listen(ctx context.Context, authorize func(ed25519.PublicKey) bool
 		_ = listener.Close()
 	}()
 
+	// Handshakes run in their own goroutines, so the channel must not be closed
+	// until every one of them has finished — otherwise a connection still
+	// shaking hands when the listener closes sends on a closed channel and
+	// panics. That is a shutdown-time crash, and it took a -count=8 run to
+	// surface.
+	var inFlight sync.WaitGroup
+
 	go func() {
-		defer close(sessions)
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				return // listener closed
+				break // listener closed
 			}
 			// One slow or hostile handshake must not stall the accept loop.
-			go t.serve(ctx, conn, authorize, sessions)
+			inFlight.Add(1)
+			go func() {
+				defer inFlight.Done()
+				t.serve(ctx, conn, authorize, sessions)
+			}()
 		}
+		inFlight.Wait()
+		close(sessions)
 	}()
 
 	return sessions, nil

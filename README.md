@@ -7,8 +7,8 @@ Written in Go. Talks to the control plane described by `contracts/openapi/contro
 `main`, pinned by `CONTRACTS_VERSION`.
 
 > **Status: working.** Copy on one device, paste on another. Verified end to end against the live
-> control plane. Peers are configured rather than discovered (no mDNS yet), and the key store is
-> not yet OS secure storage — see `HANDOFF.md`.
+> control plane. Credentials live in the OS credential store, and peers are found by mDNS or named
+> explicitly. See `HANDOFF.md` for what is still unproven.
 
 ## How to run this domain in under 5 minutes
 
@@ -31,10 +31,13 @@ Written in Go. Talks to the control plane described by `contracts/openapi/contro
    ```bash
    ./bin/agent pair K7M2QX9P "My Laptop"
    ```
-6. On the second machine, repeat with its own code, then point each at the other and run:
+6. On the second machine, repeat with its own code, then run each:
    ```bash
-   export CODEPASTE_PEERS=192.168.1.42:47800   # the other machine
    ./bin/agent run
+   ```
+   They find each other over mDNS. If your network filters multicast, name the peer explicitly:
+   ```bash
+   export CODEPASTE_PEERS=192.168.1.42:47800
    ```
 
 Copy something. It appears on the other machine's clipboard.
@@ -55,7 +58,10 @@ CODEPASTE_STATE_DIR=~/.agent2 CODEPASTE_CLIPBOARD=file:/tmp/clip2.txt   CODEPAST
 ```
 
 Copy on the desktop and `/tmp/clip2.txt` fills in; write that file and it lands on the real
-clipboard. Each agent needs its own pairing code and its own `CODEPASTE_STATE_DIR`.
+clipboard. Each agent needs its own pairing code and its own `CODEPASTE_KEY_ACCOUNT`.
+
+Add `CODEPASTE_MDNS=off` for this: two processes on one host cannot both receive on UDP 5353, so
+the static peer list is the way to link them.
 
 ## Checks
 
@@ -72,10 +78,10 @@ desktop/
 ├── cmd/agent/          CLI entrypoint
 └── internal/
     ├── clipboard/      OS provider (Windows/macOS/Linux) + file backend for tests
-    ├── discovery/      peer addresses       — static list; mDNS not yet done
+    ├── discovery/      mDNS/DNS-SD + a static peer list
     ├── transport/      TCP + station-to-station handshake + AES-256-GCM frames
     ├── queue/          outbound buffer      — in-memory, non-durable by design
-    ├── crypto/         Ed25519 identity + key store
+    ├── crypto/         Ed25519 identity + OS credential store
     ├── controlplane/   API client + roster verification
     ├── config/         environment
     └── daemon/         wiring and the authorization loops
@@ -88,7 +94,9 @@ rather than leaving it to review. The mandated boundaries themselves are unchang
 ## Security notes
 
 - The private key is generated on this machine and never transmitted. Only the public half reaches
-  the control plane.
+  the control plane. It is held in the OS credential store — Credential Manager, Keychain or
+  libsecret — never a plain file unless the machine has no keyring, and the agent says so when that
+  happens.
 - **Nothing here ever sends clipboard content to the server.** No control-plane endpoint accepts it.
 - Nothing logs clipboard content, keys, tokens or pairing codes at any level.
 - Roster verification order is fixed and enforced in `internal/controlplane/roster.go`: signature

@@ -207,8 +207,8 @@ func (a *Agent) Fingerprint() string {
 
 // EnableSync attaches a clipboard sync path. Without it the agent maintains a
 // roster and moves nothing, which is a valid way to run it.
-func (a *Agent) EnableSync(clip clipboard.Provider, tp transport.Transport, disc discovery.Discoverer) {
-	a.sync = newSyncEngine(clip, tp, disc, a.log, a.Fingerprint())
+func (a *Agent) EnableSync(clip clipboard.Provider, tp transport.Transport, disc discovery.Discoverer, port uint16) {
+	a.sync = newSyncEngine(clip, tp, disc, a.log, a.Fingerprint(), port)
 }
 
 // Run maintains authorization, and syncs the clipboard when enabled, until ctx

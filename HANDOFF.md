@@ -38,11 +38,29 @@ it from live connections rather than only from new ones.
 
 | Gap | Impact |
 |---|---|
-| **No mDNS.** Peers come from `CODEPASTE_PEERS` | Addresses must be configured. Security is unaffected — discovery only suggests where to knock. |
-| **`crypto.FileStore` is not OS secure storage** | 0600 file, not Keychain/Credential Manager/libsecret. **Fix before shipping.** `KeyStore` is an interface so this is a one-file change. |
+| **mDNS is unverified across machines** | Implemented and unit-tested, but two agents on one Windows host cannot both bind UDP 5353, so it could only be proven at the packet level here. Use `CODEPASTE_PEERS` for a single-host demo. |
 | **text/plain only** | Images are declared unsupported at pairing. The frame format already carries a content type. |
 | **No realtime socket** (ADR-006) | Revocation still lands within the ≤5 min roster expiry; the socket only makes it faster. |
 | **Single-machine testing needs the file backend** | Two agents on one host share one OS clipboard. `CODEPASTE_CLIPBOARD=file:<path>` gives the second agent somewhere independent to land. |
+
+## Credential Storage
+
+Credentials live in the platform credential store: **Windows Credential Manager** (advapi32),
+**macOS Keychain** (`security`), **Linux libsecret** (`secret-tool`). An identity found in the old
+0600 file store is migrated in and the file deleted, so existing agents do not re-pair.
+
+The file store survives only as a fallback for a machine with no keyring — a headless Linux box,
+typically — and the agent prints a warning when it lands there rather than falling back silently.
+
+## Discovery
+
+mDNS/DNS-SD (`_codepaste._tcp.local`), implemented over raw multicast with no dependencies, plus the
+static `CODEPASTE_PEERS` list. They are complements: mDNS makes the common case seamless, while a
+configured address still reaches a peer on another subnet or a network that filters multicast.
+
+Sockets open on **every** multicast-capable interface. Letting the system choose was the difference
+between working and silent on the dev machine: the default interface was a VPN adapter with no peers
+on it, while the real LAN was on Wi-Fi.
 
 ## Known Issues
 
@@ -55,6 +73,11 @@ it from live connections rather than only from new ones.
    fingerprint dials and the higher one waits — deterministic, no negotiation. A regression test
    for this is still missing.
 3. Poll interval is fixed at 400ms. Fine on desktop; revisit if it ever runs on battery.
+4. **mDNS is not verifiable on a single Windows host.** Two processes cannot both receive on UDP
+   5353 — the second gets nothing. Confirmed with an isolated two-process test, so it is a platform
+   limitation rather than a bug here, but cross-machine discovery remains unproven. Verify on two
+   machines before relying on it.
+5. Images are still declared unsupported at pairing; the frame format already carries a content type.
 
 ## Contract Discrepancy Found
 
@@ -70,9 +93,7 @@ Worth fixing the example on `main` before another client copies it.
 
 ## Next Steps
 
-1. Swap `FileStore` for OS secure storage. Highest priority — it is the one item that blocks
-   giving this to anyone else.
-2. Add mDNS so peers are found rather than configured.
-3. Regression test for simultaneous dial.
-4. Images: widen capabilities at pairing and honour the roster's `limits`.
-5. Record the Go stack decision as an ADR on `main`, per `DEV_GUIDE.md` §4.
+1. Verify mDNS between two real machines.
+2. Regression tests for simultaneous dial and for the duplicate-session rule.
+3. Images: widen capabilities at pairing and honour the roster's `limits`.
+4. Record the Go stack decision as an ADR on `main`, per `DEV_GUIDE.md` §4.

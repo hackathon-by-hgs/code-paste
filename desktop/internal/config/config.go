@@ -29,6 +29,11 @@ type Config struct {
 	Peers string
 	// Clipboard selects the provider: "" / "os", or "file:<path>" for tests.
 	Clipboard string
+	// MDNS enables local-network discovery. On unless explicitly disabled.
+	MDNS bool
+	// KeyAccount names the credential-store entry, so two agents can coexist
+	// on one machine without fighting over the same secret.
+	KeyAccount string
 }
 
 func Load() (*Config, error) {
@@ -58,5 +63,7 @@ func Load() (*Config, error) {
 		ListenPort: port,
 		Peers:      strings.TrimSpace(os.Getenv("CODEPASTE_PEERS")),
 		Clipboard:  strings.TrimSpace(os.Getenv("CODEPASTE_CLIPBOARD")),
+		MDNS:       !strings.EqualFold(strings.TrimSpace(os.Getenv("CODEPASTE_MDNS")), "off"),
+		KeyAccount: strings.TrimSpace(os.Getenv("CODEPASTE_KEY_ACCOUNT")),
 	}, nil
 }

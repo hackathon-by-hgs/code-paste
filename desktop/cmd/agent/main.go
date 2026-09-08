@@ -44,9 +44,15 @@ func run() error {
 
 	logger := newLogger(cfg.LogLevel)
 
-	store, err := crypto.NewFileStore(cfg.StateDir)
+	store, storeInfo, err := crypto.OpenKeyStore(cfg.KeyAccount, cfg.StateDir)
 	if err != nil {
 		return err
+	}
+	if !storeInfo.Secure {
+		// Said plainly rather than buried: the difference between OS-encrypted
+		// credentials and a readable file is not a detail.
+		fmt.Fprintf(os.Stderr,
+			"warning: no OS credential store available; falling back to an %s\n", storeInfo.Description)
 	}
 
 	// The agent is constructed before the client so PersistTokens can be wired
@@ -98,17 +104,35 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		peers, err := discovery.ParseStatic(cfg.Peers)
+		static, err := discovery.ParseStatic(cfg.Peers)
 		if err != nil {
 			return err
 		}
-		agent.EnableSync(clip, transport.NewTCP(agent.PrivateKey(), cfg.ListenPort), peers)
+
+		// mDNS for the seamless case, the static list for networks that filter
+		// multicast or peers on another subnet. Either alone is enough.
+		sources := []discovery.Discoverer{static}
+		var mdnsLinks []string
+		if cfg.MDNS {
+			mdns := discovery.NewMDNS(agent.DeviceID())
+			mdnsLinks = mdns.Interfaces()
+			sources = append(sources, mdns)
+		}
+
+		agent.EnableSync(
+			clip,
+			transport.NewTCP(agent.PrivateKey(), cfg.ListenPort),
+			discovery.NewMulti(sources...),
+			cfg.ListenPort,
+		)
 
 		logger.Info("agent starting",
 			"api", cfg.APIURL,
 			"listen", cfg.ListenPort,
-			"peers", peers.Len(),
+			"mdns", mdnsLinks,
+			"staticPeers", static.Len(),
 			"clipboard", clipboardLabel(cfg.Clipboard),
+			"keystore", storeInfo.Description,
 			"fingerprint", agent.Fingerprint(),
 		)
 		if err := agent.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -125,8 +149,11 @@ func run() error {
 			}
 			return err
 		}
-		fmt.Printf("Paired.\n  device      %s\n  fingerprint %s\n  state file  %s\n",
-			agent.DeviceID(), agent.Fingerprint(), store.Path())
+		fmt.Printf("Paired.\n  device      %s\n  fingerprint %s\n  credentials %s\n",
+			agent.DeviceID(), agent.Fingerprint(), storeInfo.Description)
+		if storeInfo.Migrated {
+			fmt.Println("  (migrated out of the old file store into secure storage)")
+		}
 		return nil
 
 	case "peers":
@@ -171,8 +198,10 @@ code shown beside a Session ID in the sharing panel — the two look identical.
 Environment (see .env.example):
   CODEPASTE_API_URL       required — control-plane origin, without /v1
   CODEPASTE_LISTEN_PORT   peer port (default 47800)
-  CODEPASTE_PEERS         comma-separated host:port list of peers to dial
+  CODEPASTE_PEERS         comma-separated host:port peers, for when mDNS cannot reach
+  CODEPASTE_MDNS          "off" to disable local-network discovery (default on)
   CODEPASTE_CLIPBOARD     "os" (default) or "file:<path>" for one-machine tests
+  CODEPASTE_KEY_ACCOUNT   credential-store account name, to run two agents on one host
 `)
 }
 

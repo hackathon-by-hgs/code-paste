@@ -11,6 +11,7 @@ import (
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/controlplane"
 	agentcrypto "github.com/hackathon-by-hgs/code-paste/desktop/internal/crypto"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/discovery"
+	"github.com/hackathon-by-hgs/code-paste/desktop/internal/queue"
 	"github.com/hackathon-by-hgs/code-paste/desktop/internal/transport"
 )
 
@@ -36,10 +37,20 @@ type syncEngine struct {
 	log       *slog.Logger
 	// self is this device's fingerprint, used to decide which side dials.
 	self string
+	// port is where this agent listens, advertised over mDNS.
+	port uint16
 
 	mu       sync.RWMutex
 	roster   *controlplane.PeerRoster
 	sessions map[string]transport.Session // keyed by peer fingerprint
+
+	// pending holds items copied while no peer was connected.
+	//
+	// Without this a copy made during the seconds before a peer connects — or
+	// during a brief reconnect — is lost silently, which reads as "sync is
+	// broken" even though everything is working. Bounded and lossy on purpose:
+	// a stale clipboard item is worth less than unbounded memory.
+	pending *queue.Ring
 }
 
 func newSyncEngine(
@@ -48,6 +59,7 @@ func newSyncEngine(
 	disc discovery.Discoverer,
 	log *slog.Logger,
 	selfFingerprint string,
+	port uint16,
 ) *syncEngine {
 	return &syncEngine{
 		clip:      clip,
@@ -55,7 +67,9 @@ func newSyncEngine(
 		discover:  disc,
 		log:       log,
 		self:      selfFingerprint,
+		port:      port,
 		sessions:  make(map[string]transport.Session),
+		pending:   queue.NewRing(8),
 	}
 }
 
@@ -88,6 +102,12 @@ func (s *syncEngine) setRoster(roster *controlplane.PeerRoster) {
 		s.log.Info("peer no longer authorized; closing session")
 		_ = session.Close()
 	}
+
+	count := 0
+	if roster != nil {
+		count = len(roster.Peers)
+	}
+	s.log.Debug("sync roster updated", "peers", count)
 }
 
 func (s *syncEngine) authorizedLocked(fingerprint string) bool {
@@ -113,20 +133,49 @@ func (s *syncEngine) authorize(peerKey ed25519.PublicKey) bool {
 	return ok
 }
 
-func (s *syncEngine) addSession(session transport.Session) {
+// addSession adopts a connection, reporting whether it was kept.
+//
+// An established session always wins over a duplicate. This matters more than
+// it looks: when we dial an address hunting for peer X and peer Y answers, Y
+// completes a valid handshake and its listener sees an inbound connection —
+// which, if it replaced the live session, would tear down a working link every
+// time we probed. Keeping the incumbent makes those probes harmless. A session
+// that has genuinely died is removed by its own read loop, so nothing sticks.
+func (s *syncEngine) addSession(session transport.Session) bool {
 	fingerprint := agentcrypto.FingerprintOf(session.PeerKey())
 
 	s.mu.Lock()
-	existing, duplicate := s.sessions[fingerprint]
+	if _, duplicate := s.sessions[fingerprint]; duplicate {
+		s.mu.Unlock()
+		_ = session.Close()
+		return false
+	}
 	s.sessions[fingerprint] = session
 	s.mu.Unlock()
 
-	if duplicate {
-		// Both sides dialled each other. Keep the newest and drop the old one
-		// rather than sending every item twice.
-		_ = existing.Close()
-	}
 	s.log.Info("peer connected", "fingerprint", fingerprint)
+
+	// Anything copied while we had nobody to send it to goes now.
+	s.flushPending(session)
+	return true
+}
+
+// flushPending drains the buffer to a newly connected peer.
+func (s *syncEngine) flushPending(session transport.Session) {
+	for {
+		item, ok := s.pending.Pop()
+		if !ok {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := session.Send(ctx, &item)
+		cancel()
+		if err != nil {
+			s.log.Warn("could not flush a buffered item", "error", err)
+			return
+		}
+		s.log.Info("buffered clipboard sent", "bytes", len(item.Data))
+	}
 }
 
 func (s *syncEngine) removeSession(fingerprint string, session transport.Session) {
@@ -138,6 +187,13 @@ func (s *syncEngine) removeSession(fingerprint string, session transport.Session
 
 	_ = session.Close()
 	s.log.Info("peer disconnected", "fingerprint", fingerprint)
+}
+
+// sessionCount is the number of live sessions, authorized or not.
+func (s *syncEngine) sessionCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.sessions)
 }
 
 // connectedTo reports whether a peer already has a live session.
@@ -169,6 +225,13 @@ func (s *syncEngine) run(ctx context.Context) error {
 		return err
 	}
 
+	// Advertise before browsing so a peer already listening finds us at once.
+	// A failure here is not fatal: discovery is a convenience, and a configured
+	// peer address still works without it.
+	if err := s.discover.Announce(ctx, s.self, s.port); err != nil {
+		s.log.Warn("could not announce on the local network", "error", err)
+	}
+
 	go s.acceptLoop(ctx, inbound)
 	go s.dialLoop(ctx)
 	go s.watchLoop(ctx)
@@ -186,8 +249,9 @@ func (s *syncEngine) acceptLoop(ctx context.Context, inbound <-chan transport.Se
 			if !ok {
 				return
 			}
-			s.addSession(session)
-			go s.receiveFrom(ctx, session)
+			if s.addSession(session) {
+				go s.receiveFrom(ctx, session)
+			}
 		}
 	}
 }
@@ -254,8 +318,9 @@ func (s *syncEngine) tryDialAll(ctx context.Context, candidates []discovery.Cand
 			if err != nil {
 				continue // wrong peer at that address, or nothing listening
 			}
-			s.addSession(session)
-			go s.receiveFrom(ctx, session)
+			if s.addSession(session) {
+				go s.receiveFrom(ctx, session)
+			}
 			break
 		}
 	}
@@ -301,6 +366,11 @@ func (s *syncEngine) watchLoop(ctx context.Context) {
 	for content := range changes {
 		sessions := s.authorizedSessions()
 		if len(sessions) == 0 {
+			// Buffered rather than dropped: a peer may be seconds away from
+			// connecting, and losing the copy would look like a broken agent.
+			s.pending.Push(content)
+			s.log.Debug("clipboard buffered; no authorized peer connected",
+				"bytes", len(content.Data), "queued", s.pending.Len())
 			continue
 		}
 
