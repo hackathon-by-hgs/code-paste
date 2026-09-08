@@ -16,6 +16,7 @@ import 'services/clipboard_sync_service.dart';
 import 'services/lan_transport_service.dart';
 import 'services/lan_server_service.dart';
 import 'services/transport_service.dart';
+import 'services/app_update_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -59,6 +60,11 @@ class MyApp extends StatelessWidget {
         Provider<SharingService>(
           create: (context) =>
               SharingServiceImpl(apiClient: context.read<ApiClient>()),
+        ),
+        // App Updates
+        Provider<AppUpdateService>(
+          create: (context) =>
+              AppUpdateServiceImpl(apiClient: context.read<ApiClient>()),
         ),
         // Clipboard
         Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),

@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
+import '../../services/app_update_service.dart';
+import '../../widgets/update_prompt.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,13 +29,39 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToHome() {
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () async {
       if (mounted) {
-        // TODO: Check if user is authenticated
-        // For now, go to login
-        context.go('/login');
+        await _checkForUpdate();
+        if (mounted) {
+          context.go('/login');
+        }
       }
     });
+  }
+
+  Future<void> _checkForUpdate() async {
+    try {
+      final updateService = context.read<AppUpdateService>();
+      final update = await updateService.checkForUpdate();
+
+      if (mounted && update != null) {
+        await showCupertinoDialog(
+          context: context,
+          builder: (context) => UpdatePrompt(
+            update: update,
+            onUpdate: () async {
+              Navigator.pop(context);
+              await updateService.installUpdate(update);
+            },
+            onLater: () {
+              Navigator.pop(context);
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      // Silently fail update check - don't block startup
+    }
   }
 
   @override
