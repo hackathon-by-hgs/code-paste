@@ -78,6 +78,22 @@ export class RealtimeGateway implements AuthorizationEventPublisher, OnApplicati
     const url = req.url ?? '';
     if (!url.startsWith(REALTIME_PATH)) return destroy(socket, 404);
 
+    /**
+     * Origin check. The WebSocket handshake is an HTTP GET that browsers exempt from CORS
+     * entirely, so `enableCors` does not protect this entry point at all.
+     *
+     * A native agent sends no `Origin`, so its absence is allowed. When one IS present the caller
+     * is a browser and must be on the same allowlist as the REST API. Cross-site WebSocket
+     * hijacking is not exploitable here anyway — the credential is a Bearer token an attacker's
+     * page cannot read, not an ambient cookie — but a socket that any page may open is a
+     * needlessly large surface.
+     */
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && !this.config.cors.allowedOrigins.includes(origin)) {
+      this.metrics.increment('realtime_handshake_rejections_total', { reason: 'origin-not-allowed' });
+      return destroy(socket, 403);
+    }
+
     const token = extractToken(req);
     if (!token) {
       this.metrics.increment('realtime_handshake_rejections_total', { reason: 'no-token' });
