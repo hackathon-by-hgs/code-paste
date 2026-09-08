@@ -63,7 +63,7 @@ export const DeviceList = () => {
   const [pairing, setPairing] = useState(false);
 
   return (
-    <section className="px-8 py-6 flex flex-col gap-4">
+    <section className="px-4 sm:px-8 py-6 flex flex-col gap-4">
       <div className="border-b border-white/20 pb-3 flex justify-between items-center">
         <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400">My Devices</h2>
         <button

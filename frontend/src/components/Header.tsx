@@ -6,7 +6,7 @@ export const Header = () => {
   const { user, pending, signOut } = useAuth();
 
   return (
-    <header className="flex justify-between items-center border-b border-white/20 px-8 py-4">
+    <header className="flex justify-between items-center border-b border-white/20 px-4 sm:px-8 py-4">
       <h1 className="text-xl font-bold tracking-tight uppercase">Clipboard</h1>
       <div className="flex items-center gap-4">
         {user ? (

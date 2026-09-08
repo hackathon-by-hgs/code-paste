@@ -64,7 +64,7 @@ export const SignInPanel = () => {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center px-8 py-16">
+    <div className="flex-1 flex items-center justify-center px-4 sm:px-8 py-16">
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="border-b border-white/20 pb-3">
           <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400">
