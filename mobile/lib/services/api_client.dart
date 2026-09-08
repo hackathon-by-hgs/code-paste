@@ -144,23 +144,23 @@ class ApiClient {
           return body;
         case 400:
           throw ApiException(
-            message: body['error'] ?? 'Bad request',
+            message: _extractErrorMessage(body),
             statusCode: response.statusCode,
           );
         case 401:
           clearBearerToken();
           throw ApiException(
-            message: body['error'] ?? 'Unauthorized',
+            message: _extractErrorMessage(body),
             statusCode: response.statusCode,
           );
         case 409:
           throw ApiException(
-            message: body['error'] ?? 'Conflict',
+            message: _extractErrorMessage(body),
             statusCode: response.statusCode,
           );
         case 422:
           throw ApiException(
-            message: body['error'] ?? 'Unprocessable entity',
+            message: _extractErrorMessage(body),
             statusCode: response.statusCode,
           );
         case 429:
@@ -171,7 +171,7 @@ class ApiClient {
         default:
           throw ApiException(
             message:
-                'HTTP ${response.statusCode}: ${body['error'] ?? 'Unknown error'}',
+                'HTTP ${response.statusCode}: ${_extractErrorMessage(body)}',
             statusCode: response.statusCode,
           );
       }
@@ -182,5 +182,18 @@ class ApiClient {
         originalError: e,
       );
     }
+  }
+
+  String _extractErrorMessage(Map<String, dynamic> body) {
+    final error = body['error'];
+    if (error is String) {
+      return error;
+    } else if (error is Map<String, dynamic>) {
+      // Handle nested error structure: { error: { message: "...", details: [...] } }
+      if (error['message'] is String) {
+        return error['message'] as String;
+      }
+    }
+    return 'Unknown error';
   }
 }
