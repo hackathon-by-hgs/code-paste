@@ -1,8 +1,24 @@
-# backend — Control Plane
+# Clipit backend — Control Plane
 
-Identity, device registry, authorization, share sessions and revocation for the Cross-Device
-Clipboard. **Not** the clipboard data plane: no endpoint here accepts, relays or stores clipboard
-content.
+Clipit (the Cross-Device Clipboard) lets you copy on one machine and paste on another. It keeps
+traffic local whenever the devices are local.
+
+> **Status: early and in active development.** Built in public.
+
+## Why
+
+Moving a snippet from a laptop to a desktop sitting next to it shouldn't mean emailing yourself or
+routing it through someone else's server. Two devices on the same desk shouldn't need a round trip
+to a server to share a clipboard.
+
+## Where this service fits
+
+This repo is the **control plane**. It handles identity, the device registry, pairing,
+authorization, share sessions and revocation. It decides *which* devices may talk to each other
+and gives them signed peer rosters so they can check that for themselves.
+
+It is **not** the clipboard data plane. No endpoint here accepts, relays or stores clipboard
+content. Content moves between devices, never through this backend (ADR-001).
 
 Docs, ADRs and contracts live on `main`. See `DEV_GUIDE.md` there for the branch layout, and
 §3.2 for checking `main` out as a sibling worktree.
@@ -60,3 +76,7 @@ npm run test:unit && npm run test:contract
 npm run test:integration && npm run test:security && npm run test:e2e
 npm run build
 ```
+
+## Author
+
+Built by [Faith Popoola](https://github.com/Maxima24).
