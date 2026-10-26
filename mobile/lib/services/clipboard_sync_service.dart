@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/clipboard_event.dart';
 import '../utils/secure_logging.dart';
 import 'clipboard_service.dart';
+import 'lan_transport_service.dart';
 import 'peer_discovery_service.dart';
 import 'transport_service.dart';
 
@@ -118,17 +119,22 @@ class ClipboardSyncServiceImpl implements ClipboardSyncService {
       developer.log('Warning: Peer roster not valid at start');
     }
 
-    // Get available peers and start transport
+    // Start the transport even with no outbound endpoints: the inbound
+    // listener is what lets an authorized peer reach us, and it is gated on the
+    // handshake and the roster rather than on us having dialled first.
+    //
+    // Outbound dialling needs a peer's address, which only LAN discovery can
+    // supply. Until mDNS lands on this platform the list is empty by
+    // construction -- never a guessed or broadcast address.
     final peers = _peerDiscoveryService.getAvailablePeers();
-    if (peers.isNotEmpty) {
-      try {
-        await _transport.start(peers);
-        developer.log('Transport started with ${peers.length} peers');
-      } catch (e) {
-        developer.log('Failed to start transport: $e');
-      }
-    } else {
-      developer.log('No peers available to connect');
+    try {
+      await _transport.start(const <PeerEndpoint>[]);
+      developer.log(
+        'Transport started; ${peers.length} authorized peers known, '
+        'outbound endpoints awaiting LAN discovery',
+      );
+    } catch (e) {
+      developer.log('Failed to start transport: ${e.runtimeType}');
     }
 
     // Listen to clipboard changes

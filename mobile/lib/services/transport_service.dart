@@ -1,13 +1,12 @@
 import 'dart:developer' as developer;
 import 'dart:async';
 import '../models/clipboard_event.dart';
-import '../models/peer.dart';
 import 'lan_transport_service.dart';
 import 'lan_server_service.dart';
 
 /// Unified transport service managing both client and server connections
 abstract class TransportService {
-  Future<void> start(List<Peer> peers);
+  Future<void> start(List<PeerEndpoint> endpoints);
   Future<void> stop();
   bool get isRunning;
   Future<void> sendEvent(ClipboardEvent event, String peerId);
@@ -50,7 +49,7 @@ class TransportServiceImpl implements TransportService {
   }
 
   @override
-  Future<void> start(List<Peer> peers) async {
+  Future<void> start(List<PeerEndpoint> endpoints) async {
     if (_isRunning) return;
 
     try {
@@ -64,13 +63,16 @@ class TransportServiceImpl implements TransportService {
       // Start listening for incoming connections
       await _serverService.start();
 
-      // Connect to all peers (outbound)
-      for (final peer in peers) {
+      // Connect outbound to every endpoint discovery gave us. One peer being
+      // unreachable or unauthorized must not stop the others.
+      for (final endpoint in endpoints) {
         try {
-          await _clientTransport.connectToPeer(peer);
+          await _clientTransport.connectToEndpoint(endpoint);
         } catch (e) {
-          developer.log('Failed to connect to peer ${peer.deviceId}: $e');
-          // Continue with other peers even if one fails
+          developer.log(
+            'Failed to connect to peer ${endpoint.peer.deviceId}: '
+            '${e.runtimeType}',
+          );
         }
       }
 

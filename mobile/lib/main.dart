@@ -7,6 +7,7 @@ import 'services/permission_service.dart';
 import 'services/local_device_discovery.dart';
 import 'services/auth_service.dart';
 import 'services/api_client.dart';
+import 'services/peer_authorizer.dart';
 import 'services/peer_discovery_service.dart';
 import 'services/control_plane_service.dart';
 import 'services/device_management_service.dart';
@@ -17,9 +18,26 @@ import 'services/lan_transport_service.dart';
 import 'services/lan_server_service.dart';
 import 'services/transport_service.dart';
 import 'services/app_update_service.dart';
+import 'utils/device_key.dart';
+import 'package:cryptography/cryptography.dart';
 
 void main() {
   runApp(const MyApp());
+}
+
+/// Rebuilds this device's Ed25519 signing key pair from secure storage.
+///
+/// The private half never leaves the device and is only ever used to prove
+/// identity during a LAN handshake.
+Future<SimpleKeyPair> _loadDeviceKeyPair(AuthService authService) async {
+  final credentials = await authService.getStoredDeviceCredentials();
+  if (credentials == null) {
+    throw StateError('device is not registered; cannot open a LAN channel');
+  }
+  return DeviceKey.keyPairFromStored(
+    privateKeyBase64: credentials.privateKey,
+    publicKeyBase64: credentials.publicKey,
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -41,8 +59,16 @@ class MyApp extends StatelessWidget {
         ),
         // Peer Discovery
         Provider<PeerDiscoveryService>(
-          create: (context) =>
-              PeerDiscoveryServiceImpl(apiClient: context.read<ApiClient>()),
+          create: (context) {
+            final authService = context.read<AuthService>();
+            return PeerDiscoveryServiceImpl(
+              apiClient: context.read<ApiClient>(),
+              // A roster is only honoured if it was issued to this device, so
+              // verification needs our own registered identity.
+              selfDeviceId: () async =>
+                  (await authService.getStoredDeviceCredentials())?.deviceId,
+            );
+          },
         ),
         // Control Plane (for fetching signing keys)
         Provider<ControlPlaneService>(
@@ -68,13 +94,26 @@ class MyApp extends StatelessWidget {
         ),
         // Clipboard
         Provider<ClipboardService>(create: (_) => ClipboardServiceImpl()),
+        // Peer authorization: the single place that answers "may this proven
+        // identity exchange clipboard data right now?"
+        Provider<PeerAuthorizer>(
+          create: (context) =>
+              PeerAuthorizer(context.read<PeerDiscoveryService>()),
+        ),
         // LAN Transport
         Provider<LanTransportService>(
-          create: (_) =>
-              LanTransportServiceImpl(deviceId: '', privateKeyPem: ''),
+          create: (context) => LanTransportServiceImpl(
+            staticKeyPair: () =>
+                _loadDeviceKeyPair(context.read<AuthService>()),
+            authorizer: context.read<PeerAuthorizer>(),
+          ),
         ),
         Provider<LanServerService>(
-          create: (_) => LanServerServiceImpl(deviceId: '', privateKeyPem: ''),
+          create: (context) => LanServerServiceImpl(
+            staticKeyPair: () =>
+                _loadDeviceKeyPair(context.read<AuthService>()),
+            authorizer: context.read<PeerAuthorizer>(),
+          ),
         ),
         Provider<TransportService>(
           create: (context) => TransportServiceImpl(
@@ -97,6 +136,7 @@ class MyApp extends StatelessWidget {
             permissionService: PermissionServiceImpl(),
             deviceDiscovery: LocalDeviceDiscoveryImpl(),
             peerDiscoveryService: context.read<PeerDiscoveryService>(),
+            controlPlaneService: context.read<ControlPlaneService>(),
             clipboardSyncService: context.read<ClipboardSyncService>(),
             authService: context.read<AuthService>(),
           ),

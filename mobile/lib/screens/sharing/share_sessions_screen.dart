@@ -232,10 +232,9 @@ class _ShareSessionsScreenState extends State<ShareSessionsScreen> {
     setState(() => _isLoading = true);
     try {
       final sharingService = context.read<SharingService>();
+      final clipboardSync = context.read<ClipboardSyncService>();
       await sharingService.joinSession(sessionId, joinCode);
 
-      // Set active session in clipboard sync
-      final clipboardSync = context.read<ClipboardSyncService>();
       final session = await sharingService.getSession(sessionId);
 
       // Extract member user IDs as peer identifiers

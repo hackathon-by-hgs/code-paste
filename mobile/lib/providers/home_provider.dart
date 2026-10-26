@@ -6,6 +6,7 @@ import '../models/network.dart';
 import '../models/app_state.dart';
 import '../services/permission_service.dart';
 import '../services/local_device_discovery.dart';
+import '../services/control_plane_service.dart';
 import '../services/peer_discovery_service.dart';
 import '../services/clipboard_sync_service.dart';
 import '../services/auth_service.dart';
@@ -14,6 +15,7 @@ class HomeProvider extends ChangeNotifier {
   final PermissionService permissionService;
   final LocalDeviceDiscovery deviceDiscovery;
   final PeerDiscoveryService peerDiscoveryService;
+  final ControlPlaneService controlPlaneService;
   final ClipboardSyncService clipboardSyncService;
   final AuthService authService;
 
@@ -29,6 +31,7 @@ class HomeProvider extends ChangeNotifier {
     required this.permissionService,
     required this.deviceDiscovery,
     required this.peerDiscoveryService,
+    required this.controlPlaneService,
     required this.clipboardSyncService,
     required this.authService,
   });
@@ -121,16 +124,28 @@ class HomeProvider extends ChangeNotifier {
       // Haptic feedback: success
       await HapticFeedback.mediumImpact();
 
-      // Fetch peer roster
+      // Authorization has to be established before any sync starts. A roster
+      // we cannot fetch and verify authorizes nobody, and sharing a network is
+      // never a fallback for that (ADR-003) -- so this is a hard stop, not a
+      // warning to log past.
       try {
+        await controlPlaneService.fetchAndRegisterKeys();
         await peerDiscoveryService.fetchPeerRoster();
         developer.log(
-          'Peer roster fetched: ${peerDiscoveryService.getAvailablePeers().length} peers',
+          'Authorized peers: ${peerDiscoveryService.getAvailablePeers().length}',
         );
       } catch (e) {
-        developer.log('Failed to fetch peer roster (continuing anyway): $e');
-        // Don't fail - app can work without peer roster during development
-        // Just log it and continue - peer sync will be unavailable but app still works
+        developer.log('Authorization unavailable: ${e.runtimeType}');
+        _state = AppLifecycleState.ready;
+        _error = AppError(
+          message: 'Sync Unavailable',
+          details:
+              'Could not confirm which of your devices are authorized, so '
+              'clipboard sync stayed off. Check your connection and try again.',
+          recoverable: true,
+        );
+        notifyListeners();
+        return;
       }
 
       // Start clipboard sync

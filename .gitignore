@@ -7,6 +7,9 @@
 # Build artifacts
 mobile/build/
 mobile/.dart_tool/
+mobile/coverage/
+# Generated, and it embeds the generating machine's pub-cache paths.
+mobile/.flutter-plugins-dependencies
 mobile/.packages
 mobile/**/*.g.dart
 mobile/**/*.config.dart
