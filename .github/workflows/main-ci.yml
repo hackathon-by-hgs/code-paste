@@ -1,0 +1,98 @@
+name: Main CI
+
+# Belongs to `main` only. `main` holds no product code — it holds the contracts
+# and docs every domain is obliged to follow — so this workflow checks that
+# those obligations are internally consistent and actually satisfiable.
+#
+# The file is deliberately NOT named `ci.yml`: GitHub keys a workflow by its
+# path, so every branch using that name collapses into one workflow record and
+# inherits whichever registered first (DEV_GUIDE.md §6).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: contracts/tools
+    shell: bash
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: contracts/tools/package-lock.json
+      - run: npm ci
+
+      - name: Schemas, event vectors and OpenAPI
+        run: node verify-contracts.mjs
+
+      - name: LAN wire vectors (ADR-009)
+        run: node verify-wire-vectors.mjs
+
+      - name: Doc references resolve
+        run: node verify-doc-links.mjs
+
+  no-product-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: main must not grow a domain folder
+        run: |
+          # DEV_GUIDE.md §2: "main is not a trunk" and holds no product code.
+          # Each domain lives on its own orphan branch, so a folder appearing
+          # here means someone merged across unrelated histories.
+          found=0
+          for domain in backend frontend desktop mobile shared; do
+            if [ -d "$domain" ]; then
+              echo "::error::$domain/ exists on main; product code belongs on the $domain branch (DEV_GUIDE.md §2, §9)"
+              found=1
+            fi
+          done
+          exit "$found"
+
+  no-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: no private keys or env files committed
+        run: |
+          # The wire vectors do carry fixed private keys, but as raw hex rather
+          # than PEM, so no exemption is needed here. They are test material and
+          # must never reach a device or a deployment.
+          matches=$(grep -rIlE 'BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY' . \
+            --exclude-dir=.git --exclude-dir=node_modules || true)
+          if [ -n "$matches" ]; then
+            echo "::error::PEM private key material committed:"
+            echo "$matches"
+            exit 1
+          fi
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked; only .env.example belongs in git"
+            exit 1
+          fi
+          echo "no committed key material"

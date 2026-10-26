@@ -1,0 +1,26 @@
+{
+  "name": "handshake-kdf",
+  "description": "Fixed key material through the ADR-009 handshake and key schedule. An implementation that reproduces dialerToListener and listenerToDialer has a correct transcript and HKDF. Private keys appear here only because these are test vectors.",
+  "transcriptLabel": "codepaste-handshake-v1",
+  "keyLabel": "codepaste-frame-keys-v1",
+  "input": {
+    "dialerStaticPrivate": "1b09cc036299a4e0e0fbd950d1fbaadcb69a6c4181d5ac60443d8d5da2155227",
+    "dialerStaticPublic": "4bfdd559cbe141075aa32c9d18a0600af5ddeea26f40643ee3fa791bc702b1f9",
+    "dialerEphemeralPrivate": "5d99bcb1b4da5d261e6a95bb36484123bc53dfdca349f7356515f030d2c9dfac",
+    "dialerEphemeralPublic": "d6bfaa96628612e0b9062cbbd69f78c47df2f1265bc26da21990ba170d2bba49",
+    "listenerStaticPrivate": "32648b4084f9bdf28a89a5c47b49f7878cd55adeff8a3470aa5e30d9cb525c91",
+    "listenerStaticPublic": "772e7ad4ea80890ad6f1fb91b6910e42ffc52a48b501264727db46211ccb2511",
+    "listenerEphemeralPrivate": "72a80c44dd78d45845f254ccd9022830a7f1abca46a239e8c11a0fb24e68b1bc",
+    "listenerEphemeralPublic": "7c0f5dc311febe7dd442cf55d784412eca06afbda9982b75a162a0cf97667c10"
+  },
+  "expected": {
+    "transcript": "636f646570617374652d68616e647368616b652d7631d6bfaa96628612e0b9062cbbd69f78c47df2f1265bc26da21990ba170d2bba494bfdd559cbe141075aa32c9d18a0600af5ddeea26f40643ee3fa791bc702b1f97c0f5dc311febe7dd442cf55d784412eca06afbda9982b75a162a0cf97667c10772e7ad4ea80890ad6f1fb91b6910e42ffc52a48b501264727db46211ccb2511",
+    "sharedSecret": "fc83e8b26ab66e361651aff487cce1009bb15b8e36952033f246199c75f3a51e",
+    "salt": "b9b01b35716ae4d299e1971b189abd2ba4cbfac2394bb007a3b33d70abdb7ced",
+    "material": "5662e79e1efeed3babab5e4c5171e8b6531162021978ee0cb626dec12fa12bcce2e91142b37cc21621b2940c3efd1848766a61d65d70dbb322819a973518b0e4",
+    "dialerToListener": "5662e79e1efeed3babab5e4c5171e8b6531162021978ee0cb626dec12fa12bcc",
+    "listenerToDialer": "e2e91142b37cc21621b2940c3efd1848766a61d65d70dbb322819a973518b0e4",
+    "dialerSignature": "11040076d08c7c1a75626f10fd7d1b975cca1d63e47e47868f99c13a0e2561ae5d52517cebfdab774284580496ad734c29a54fd3a40f9707f85c5fc419a0af02",
+    "listenerSignature": "2557fbe780f1ad4b4aa6b9dfd8e7acd8cc905f5f765417af09a81d7a366b462a12f06eab80fba2c4f8e011d4cd9d483dffdd241f329599e78810f8bce6ca7b0c"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@code-paste/contract-tools",
+  "private": true,
+  "type": "module",
+  "description": "Validation for the contracts on main. Not product code and not shipped to any client.",
+  "scripts": {
+    "verify": "node verify-contracts.mjs && node verify-wire-vectors.mjs && node verify-doc-links.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "^2.8.1"
+  }
+}
