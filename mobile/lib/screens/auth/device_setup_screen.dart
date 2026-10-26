@@ -84,7 +84,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
       } else if (e.statusCode == 409) {
         errorMsg = 'Device already exists. Please use a different device name.';
       } else {
-        errorMsg = '${e.message}';
+        errorMsg = e.message;
       }
       setState(() {
         _errorMessage = errorMsg;

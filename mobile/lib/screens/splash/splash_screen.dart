@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../services/app_update_service.dart';

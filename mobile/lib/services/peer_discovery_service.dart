@@ -1,9 +1,10 @@
-import 'dart:convert';
-import '../models/peer.dart';
 import '../models/network.dart';
-import '../utils/crypto_verification.dart';
+import '../models/peer.dart';
+import '../utils/roster_signature_verifier.dart';
 import '../utils/secure_logging.dart';
 import 'api_client.dart';
+import 'roster_verifier.dart';
+import 'roster_version_store.dart';
 
 abstract class PeerDiscoveryService {
   Future<PeerRoster> fetchPeerRoster();
@@ -12,37 +13,79 @@ abstract class PeerDiscoveryService {
   Peer? findPeerByFingerprint(String fingerprint);
   List<Peer> getAvailablePeers();
   bool isRosterValid();
-  void registerControlPlaneKey(String keyId, String publicKeyBase64);
-  void setStrictVerification(bool strict);
+
+  /// Registers a control-plane roster signing key. Returns false if the key is
+  /// malformed, in which case nothing is trusted.
+  bool registerControlPlaneKey(String keyId, String publicKeyBase64);
+
+  /// How many control-plane keys are trusted. Zero means no roster can verify,
+  /// and therefore that no peer is authorized.
+  int get trustedKeyCount;
 }
 
 class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
   final ApiClient _apiClient;
-  PeerRoster? _cachedRoster;
-  late final Ed25519Verifier _verifier;
+  final Future<String?> Function() _selfDeviceId;
+  final RosterSignatureVerifier _signatures;
+  final RosterVerifier _verifier;
 
-  PeerDiscoveryServiceImpl({required ApiClient apiClient})
-    : _apiClient = apiClient {
-    _verifier = Ed25519Verifier();
+  PeerRoster? _cachedRoster;
+
+  factory PeerDiscoveryServiceImpl({
+    required ApiClient apiClient,
+    required Future<String?> Function() selfDeviceId,
+    RosterSignatureVerifier? signatureVerifier,
+    RosterVersionStore? versionStore,
+  }) {
+    return PeerDiscoveryServiceImpl._(
+      apiClient,
+      selfDeviceId,
+      signatureVerifier ?? RosterSignatureVerifier(),
+      versionStore ?? SecureRosterVersionStore(),
+    );
   }
+
+  PeerDiscoveryServiceImpl._(
+    this._apiClient,
+    this._selfDeviceId,
+    RosterSignatureVerifier signatures,
+    RosterVersionStore versionStore,
+  ) : _signatures = signatures,
+      _verifier = RosterVerifier(
+        signatureVerifier: signatures,
+        versionStore: versionStore,
+      );
+
+  @override
+  int get trustedKeyCount => _signatures.trustedKeyCount;
 
   @override
   Future<PeerRoster> fetchPeerRoster() async {
-    try {
-      final response = await _apiClient.get('/authz/peer-set', withAuth: true);
-
-      // Parse SignedPeerRoster
-      final signedRoster = SignedPeerRoster.fromJson(response);
-
-      // Decode and verify
-      final rosterJson = _decodeAndVerifyRoster(signedRoster);
-
-      // Parse PeerRoster from verified JSON
-      _cachedRoster = PeerRoster.fromJson(rosterJson);
-      return _cachedRoster!;
-    } catch (e) {
-      throw Exception('Failed to fetch peer roster: $e');
+    final selfDeviceId = await _selfDeviceId();
+    if (selfDeviceId == null || selfDeviceId.isEmpty) {
+      // Without our own device identity there is no way to check that the
+      // roster was issued to us, so there is no safe way to use one.
+      throw StateError('cannot fetch a peer roster before device registration');
     }
+
+    final response = await _apiClient.get('/authz/peer-set', withAuth: true);
+    final signed = SignedPeerRoster.fromJson(response);
+
+    // A rejection here deliberately leaves any previously verified roster in
+    // place: ADR-003 lets LAN sync survive a control-plane problem until the
+    // cached roster expires on its own. What a rejection must never do is
+    // adopt the roster that failed.
+    final roster = await _verifier.verifyAndParse(
+      signed: signed,
+      selfDeviceId: selfDeviceId,
+    );
+
+    _cachedRoster = roster;
+    SecureLogging.logSyncEvent(
+      'Peer roster accepted: version=${roster.rosterVersion} '
+      'peers=${roster.peers.length}',
+    );
+    return roster;
   }
 
   @override
@@ -52,105 +95,50 @@ class PeerDiscoveryServiceImpl implements PeerDiscoveryService {
 
   @override
   Peer? findPeerByDeviceId(String deviceId) {
-    return _cachedRoster?.findPeerByDeviceId(deviceId);
+    if (!isRosterValid()) return null;
+    return _cachedRoster!.findPeerByDeviceId(deviceId);
   }
 
   @override
   Peer? findPeerByFingerprint(String fingerprint) {
-    return _cachedRoster?.findPeerByFingerprint(fingerprint);
+    if (!isRosterValid()) return null;
+    return _cachedRoster!.findPeerByFingerprint(fingerprint);
   }
 
   @override
   List<Peer> getAvailablePeers() {
-    if (_cachedRoster == null || _cachedRoster!.isExpired()) {
-      return [];
-    }
+    if (!isRosterValid()) return const <Peer>[];
     return _cachedRoster!.peers;
   }
 
   @override
   bool isRosterValid() {
-    return _cachedRoster != null && !_cachedRoster!.isExpired();
+    final roster = _cachedRoster;
+    return roster != null && !roster.isExpired();
   }
 
   @override
-  void registerControlPlaneKey(String keyId, String publicKeyBase64) {
-    _verifier.registerTrustedKey(keyId, publicKeyBase64);
-    SecureLogging.logSyncEvent('Control plane key registered: $keyId');
-  }
-
-  @override
-  void setStrictVerification(bool strict) {
-    _verifier.setStrictMode(strict);
-    SecureLogging.logSyncEvent('Signature verification strict mode: $strict');
-  }
-
-  Map<String, dynamic> _decodeAndVerifyRoster(SignedPeerRoster signedRoster) {
-    try {
-      // Decode base64 payload
-      final payloadBytes = base64.decode(signedRoster.payload);
-      final payloadJson =
-          jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
-
-      // Attempt Ed25519 signature verification
-      _verifyRosterSignature(signedRoster, payloadBytes);
-
-      return payloadJson;
-    } catch (e) {
-      SecureLogging.logSecurity('roster_decode_failed', e.toString());
-      throw Exception('Failed to decode/verify roster: $e');
-    }
-  }
-
-  /// Verify Ed25519 signature of the peer roster
-  void _verifyRosterSignature(
-    SignedPeerRoster signedRoster,
-    List<int> payloadBytes,
-  ) {
-    try {
-      // Decode signature from base64
-      final signatureBytes = base64.decode(signedRoster.signatureValue);
-
-      // Verify signature using the Ed25519Verifier
-      final isValid = _verifier.verify(
-        keyId: signedRoster.signatureKeyId,
-        message: payloadBytes,
-        signatureBytes: signatureBytes,
+  bool registerControlPlaneKey(String keyId, String publicKeyBase64) {
+    final registered = _signatures.registerKey(keyId, publicKeyBase64);
+    if (!registered) {
+      SecureLogging.logSecurity(
+        'roster_key_rejected',
+        'malformed key id or key material',
       );
-
-      if (!isValid) {
-        SecureLogging.logSecurity(
-          'roster_verification_failed',
-          'Signature verification failed for key ${signedRoster.signatureKeyId}',
-        );
-        throw Exception('Peer roster signature verification failed');
-      }
-
-      SecureLogging.logSyncEvent(
-        'Peer roster signature verified with key ${signedRoster.signatureKeyId}',
-      );
-    } catch (e) {
-      SecureLogging.logSecurity('roster_verification_error', e.toString());
-      rethrow;
     }
+    return registered;
   }
 
-  /// Match a Network (LAN-discovered) to a Peer (from roster)
-  /// Returns the matching Peer if fingerprints match
+  /// Resolves a device discovered on the LAN to an authorized peer.
+  ///
+  /// Discovery is untrusted input: it only claims a device exists. A match here
+  /// means the identity is *authorized*; the transport handshake still has to
+  /// prove the peer holds the matching private key.
   Peer? matchNetworkToPeer(Network network) {
-    if (_cachedRoster == null || _cachedRoster!.isExpired()) {
-      return null;
-    }
+    if (!isRosterValid()) return null;
 
-    // Try to find peer by device ID if available
-    if (network.deviceId != null) {
-      final peer = _cachedRoster!.findPeerByDeviceId(network.deviceId!);
-      if (peer != null) return peer;
-    }
-
-    // Could also match by fingerprint if we have it
-    // For now, just by name/IP matching in home provider
-
-    return null;
+    final deviceId = network.deviceId;
+    if (deviceId == null) return null;
+    return _cachedRoster!.findPeerByDeviceId(deviceId);
   }
 }
